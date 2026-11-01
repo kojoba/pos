@@ -1,0 +1,1 @@
+export default function EmptyState({ title = 'Nothing to show yet', description = 'New entries will appear here.' }) { return <div className="empty-state"><span className="empty-mark">—</span><strong>{title}</strong><p>{description}</p></div>; }

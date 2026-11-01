@@ -1,0 +1,3561 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SmartPOS — Restaurant & Warehouse System</title>
+<style>
+/* ============ GLOBAL ============ */
+* { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', Tahoma, sans-serif; }
+body { background: #f4f6f9; color: #2c3e50; }
+.hidden { display: none !important; }
+
+/* ============ LOGIN ============ */
+#loginScreen {
+  display: flex; align-items: center; justify-content: center;
+  height: 100vh; background: linear-gradient(135deg, #667eea, #764ba2);
+}
+.login-box {
+  background: #fff; padding: 40px; border-radius: 16px;
+  width: 380px; box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+}
+.login-box h1 { text-align: center; margin-bottom: 8px; color: #4a3f8f; }
+.login-box p { text-align: center; color: #888; margin-bottom: 24px; font-size: 13px; }
+.login-box input {
+  width: 100%; padding: 12px; margin-bottom: 14px;
+  border: 1px solid #ddd; border-radius: 8px; font-size: 14px;
+}
+.btn {
+  padding: 12px 20px; border: none; border-radius: 8px;
+  cursor: pointer; font-size: 14px; font-weight: 600;
+  transition: 0.2s;
+}
+.btn-primary { background: #667eea; color: #fff; width: 100%; }
+.btn-primary:hover { background: #5568d3; }
+.btn-success { background: #27ae60; color: #fff; }
+.btn-danger { background: #e74c3c; color: #fff; }
+.btn-warning { background: #f39c12; color: #fff; }
+.btn-sm { padding: 6px 12px; font-size: 12px; }
+
+/* ============ LAYOUT ============ */
+#app { display: flex; height: 100vh; }
+.sidebar {
+  width: 240px; background: #2c3e50; color: #fff;
+  display: flex; flex-direction: column; padding: 20px 0;
+}
+.sidebar h2 { padding: 0 20px 20px; font-size: 20px; border-bottom: 1px solid #34495e; }
+.sidebar .user-info {
+  padding: 15px 20px; font-size: 13px; color: #bdc3c7;
+  border-bottom: 1px solid #34495e;
+}
+.sidebar nav a {
+  display: block; padding: 14px 20px; color: #ecf0f1;
+  text-decoration: none; cursor: pointer; font-size: 14px;
+  border-left: 3px solid transparent;
+}
+.sidebar nav a:hover, .sidebar nav a.active {
+  background: #34495e; border-left-color: #667eea;
+}
+.sidebar .logout { margin-top: auto; padding: 20px; }
+.main { flex: 1; overflow-y: auto; padding: 24px; }
+.page-title { font-size: 24px; margin-bottom: 20px; color: #2c3e50; }
+
+/* ============ CARDS ============ */
+.card {
+  background: #fff; border-radius: 12px; padding: 20px;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.05); margin-bottom: 20px;
+}
+.card h3 { margin-bottom: 14px; font-size: 16px; color: #34495e; }
+.stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; margin-bottom: 20px; }
+.stat-card {
+  background: #fff; padding: 20px; border-radius: 12px;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.05); border-left: 4px solid #667eea;
+}
+.stat-card .label { font-size: 12px; color: #7f8c8d; text-transform: uppercase; }
+.stat-card .value { font-size: 24px; font-weight: 700; color: #2c3e50; margin-top: 6px; }
+
+/* ============ POS ============ */
+.pos-layout { display: grid; grid-template-columns: 1fr 380px; gap: 20px; }
+.menu-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
+.menu-item {
+  background: #fff; padding: 16px; border-radius: 10px;
+  cursor: pointer; text-align: center; box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+  transition: 0.2s; border: 2px solid transparent;
+}
+.menu-item:hover { transform: translateY(-2px); border-color: #667eea; }
+.menu-item .name { font-weight: 600; font-size: 14px; }
+.menu-item .price { color: #27ae60; font-weight: 700; margin-top: 6px; }
+.cart { background: #fff; border-radius: 12px; padding: 20px; height: fit-content; position: sticky; top: 0; }
+.cart-item { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #eee; font-size: 14px; }
+.cart-item .qty { color: #667eea; font-weight: 600; }
+.cart-total { font-size: 20px; font-weight: 700; margin: 16px 0; text-align: right; color: #2c3e50; }
+
+/* ============ TABLES ============ */
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th, td { padding: 12px; text-align: left; border-bottom: 1px solid #eee; }
+th { background: #f8f9fa; font-weight: 600; color: #34495e; }
+tr:hover { background: #f8f9fa; }
+
+/* ============ MODAL ============ */
+.modal {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.6);
+  display: flex; align-items: center; justify-content: center; z-index: 1000;
+}
+.modal-box {
+  background: #fff; border-radius: 16px; padding: 30px;
+  width: 460px; max-width: 90%; max-height: 90vh; overflow-y: auto;
+}
+.modal-box h2 { margin-bottom: 16px; }
+.modal-box input, .modal-box select {
+  width: 100%; padding: 10px; margin-bottom: 12px;
+  border: 1px solid #ddd; border-radius: 8px;
+}
+.payment-options { display: grid; gap: 10px; margin: 16px 0; }
+.pay-opt {
+  padding: 14px; border: 2px solid #ddd; border-radius: 10px;
+  cursor: pointer; text-align: center; font-weight: 600;
+}
+.pay-opt:hover { border-color: #667eea; }
+.pay-opt.selected { border-color: #667eea; background: #eef1fd; }
+
+/* ============ RECEIPT ============ */
+.receipt {
+  font-family: 'Courier New', monospace; font-size: 13px;
+  padding: 20px; background: #fff; border: 1px dashed #999;
+}
+.receipt hr { border: none; border-top: 1px dashed #999; margin: 10px 0; }
+.receipt .line { display: flex; justify-content: space-between; }
+
+.badge { padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: 600; }
+.badge-green { background: #d4edda; color: #155724; }
+.badge-orange { background: #ffe4b5; color: #8a5300; }
+.badge-red { background: #f8d7da; color: #721c24; }
+.badge-blue { background: #d1ecf1; color: #0c5460; }
+.badge-purple { background: #e2d9f3; color: #4a1e8c; }
+
+.form-row { display: flex; gap: 10px; margin-bottom: 12px; }
+.form-row input, .form-row select { flex: 1; padding: 10px; border: 1px solid #ddd; border-radius: 8px; }
+.empty { text-align: center; color: #aaa; padding: 30px; }
+</style>
+</head>
+<body>
+
+<!-- ==================== LOGIN ==================== -->
+<div id="loginScreen">
+  <div class="login-box">
+    <h1>🍔 SmartPOS</h1>
+    <p>Restaurant & Warehouse Management System</p>
+    <input id="loginUser" placeholder="Username" value="manager">
+    <input id="loginPass" type="password" placeholder="Password (optional)">
+    <button class="btn btn-primary" onclick="login()">Login</button>
+    <p style="margin-top:16px;font-size:11px;color:#aaa;text-align:center">
+      Password is optional — leave blank to log in
+    </p>
+  </div>
+</div>
+
+<!-- ==================== APP ==================== -->
+<div id="app" class="hidden">
+  <aside class="sidebar">
+    <h2>🍔 SmartPOS</h2>
+    <div class="user-info">
+      <div id="currentUser"></div>
+      <div id="currentRole" style="color:#667eea;font-weight:600"></div>
+    </div>
+    <nav id="navMenu"></nav>
+    <div class="logout">
+      <button class="btn btn-danger btn-sm" style="width:100%" onclick="logout()">Logout</button>
+    </div>
+  </aside>
+  <main class="main" id="mainContent"></main>
+</div>
+
+<!-- ==================== MODALS ==================== -->
+<div id="modalContainer"></div>
+
+<script>
+/* ============================================================
+   DATABASE (localStorage)
+   ============================================================ */
+const DB = {
+  init() {
+    if (!localStorage.getItem('pos_initialized')) {
+      this.set('products', [
+        { id: 1, name: 'Chicken Burger', price: 25.00, stock: 50 },
+        { id: 2, name: 'Beef Pizza', price: 45.00, stock: 30 },
+        { id: 3, name: 'French Fries', price: 12.00, stock: 100 },
+        { id: 4, name: 'Coca Cola', price: 8.00, stock: 200 },
+        { id: 5, name: 'Grilled Chicken', price: 38.00, stock: 25 },
+        { id: 6, name: 'Rice & Beans', price: 18.00, stock: 60 },
+        { id: 7, name: 'Milkshake', price: 15.00, stock: 40 },
+        { id: 8, name: 'Chicken Wings', price: 30.00, stock: 35 },
+      ]);
+      this.set('orders', []);
+      this.set('stockMovements', []);
+      this.set('customers', []);
+      this.set('deliveries', []);
+      this.set('riders', []);
+      this.set('users', [
+        { username: 'manager', name: 'Manager', password: '1234', role: 'manager', phone: '' },
+      ]);
+      localStorage.setItem('pos_initialized', '1');
+    }
+  },
+  get(k) { return JSON.parse(localStorage.getItem('pos_' + k) || '[]'); },
+  set(k, v) { localStorage.setItem('pos_' + k, JSON.stringify(v)); },
+  nextId(k) {
+    const arr = this.get(k);
+    return arr.length ? Math.max(...arr.map(x => x.id || 0)) + 1 : 1;
+  }
+};
+DB.init();
+
+/* ============================================================
+   SESSION
+   ============================================================ */
+let session = null;
+let cart = [];
+
+/* ============================================================
+   LOGIN — empty password is allowed
+   ============================================================ */
+function login() {
+  const username = document.getElementById('loginUser').value.trim().toLowerCase();
+  const password = document.getElementById('loginPass').value;
+
+  const users = DB.get('users');
+  const user = users.find(u =>
+    u.username === username && (password === '' || u.password === password)
+  );
+
+  if (!user) { alert('Invalid username or password!'); return; }
+
+  session = user;
+  document.getElementById('loginScreen').classList.add('hidden');
+  document.getElementById('app').classList.remove('hidden');
+  document.getElementById('currentUser').textContent = '👤 ' + session.name;
+  document.getElementById('currentRole').textContent = session.role.toUpperCase();
+  buildNav();
+  navigate(user.role === 'rider' ? 'riderDeliveries' : user.role === 'manager' ? 'dashboard' : 'pos');
+}
+
+function logout() {
+  session = null; cart = [];
+  document.getElementById('app').classList.add('hidden');
+  document.getElementById('loginScreen').classList.remove('hidden');
+  document.getElementById('loginUser').value = '';
+  document.getElementById('loginPass').value = '';
+}
+
+/* ============================================================
+   NAVIGATION (role-based)
+   ============================================================ */
+function buildNav() {
+  const nav = document.getElementById('navMenu');
+  let links = '';
+  if (session.role === 'manager') {
+    links = `
+      <a onclick="navigate('dashboard')">📊 Sales Dashboard</a>
+      <a onclick="navigate('pos')">💳 POS Checkout</a>
+      <a onclick="navigate('warehouse')">📦 Warehouse</a>
+      <a onclick="navigate('riders')">🛵 Riders & Deliveries</a>
+      <a onclick="navigate('customers')">👥 Customers</a>
+      <a onclick="navigate('users')">🔐 User Management</a>`;
+  } else if (session.role === 'worker') {
+    links = `
+      <a onclick="navigate('pos')">💳 POS Checkout</a>
+      <a onclick="navigate('warehouse')">📦 Stock Requests</a>`;
+  } else if (session.role === 'rider') {
+    links = `
+      <a onclick="navigate('riderDeliveries')">🛵 My Deliveries</a>`;
+  }
+  nav.innerHTML = links;
+}
+
+function navigate(page) {
+  if (page === 'dashboard' && session.role !== 'manager') {
+    alert('Access denied. Only managers can view sales data.');
+    return;
+  }
+  if (page === 'users' && session.role !== 'manager') {
+    alert('Access denied. Only managers can manage users.');
+    return;
+  }
+  document.querySelectorAll('#navMenu a').forEach(a => a.classList.remove('active'));
+  const pages = {
+    dashboard: renderDashboard,
+    pos: renderPOS,
+    warehouse: renderWarehouse,
+    riders: renderRiders,
+    customers: renderCustomers,
+    users: renderUsers,
+    riderDeliveries: renderRiderDeliveries,
+  };
+  if (pages[page]) pages[page]();
+}
+
+/* ============================================================
+   MODULE 1: POS CHECKOUT
+   ============================================================ */
+function renderPOS() {
+  const products = DB.get('products');
+  const mc = document.getElementById('mainContent');
+  mc.innerHTML = `
+    <h1 class="page-title">💳 POS Checkout</h1>
+    <div class="pos-layout">
+      <div>
+        <div class="card">
+          <h3>Menu</h3>
+          <div class="menu-grid" id="menuGrid"></div>
+        </div>
+      </div>
+      <div class="cart">
+        <h3>🛒 Cart</h3>
+        <div id="cartItems"><p class="empty">Cart is empty</p></div>
+        <div class="cart-total" id="cartTotal">Total: $0.00</div>
+        <button class="btn btn-success" style="width:100%" onclick="openPaymentModal()">Checkout & Pay</button>
+      </div>
+    </div>`;
+
+  const grid = document.getElementById('menuGrid');
+  grid.innerHTML = products.map(p => `
+    <div class="menu-item" onclick="addToCart(${p.id})">
+      <div class="name">${p.name}</div>
+      <div class="price">$${p.price.toFixed(2)}</div>
+      <div style="font-size:11px;color:#999;margin-top:4px">Stock: ${p.stock}</div>
+    </div>`).join('');
+
+  renderCart();
+}
+
+function addToCart(id) {
+  const products = DB.get('products');
+  const p = products.find(x => x.id === id);
+  if (p.stock <= 0) { alert('Out of stock!'); return; }
+  const item = cart.find(x => x.id === id);
+  if (item) item.qty++;
+  else cart.push({ id: p.id, name: p.name, price: p.price, qty: 1 });
+  renderCart();
+}
+
+function removeFromCart(id) {
+  cart = cart.filter(x => x.id !== id);
+  renderCart();
+}
+
+function renderCart() {
+  const el = document.getElementById('cartItems');
+  const totalEl = document.getElementById('cartTotal');
+  if (!el) return;
+  if (cart.length === 0) {
+    el.innerHTML = '<p class="empty">Cart is empty</p>';
+    totalEl.textContent = 'Total: $0.00';
+    return;
+  }
+  el.innerHTML = cart.map(i => `
+    <div class="cart-item">
+      <div><b>${i.name}</b><br><small>$${i.price.toFixed(2)}</small></div>
+      <div>
+        <span class="qty">x${i.qty}</span>
+        <button class="btn btn-danger btn-sm" onclick="removeFromCart(${i.id})">✕</button>
+      </div>
+    </div>`).join('');
+  const total = cart.reduce((s, i) => s + i.price * i.qty, 0);
+  totalEl.textContent = 'Total: $' + total.toFixed(2);
+}
+
+function openPaymentModal() {
+  if (cart.length === 0) { alert('Cart is empty!'); return; }
+  const total = cart.reduce((s, i) => s + i.price * i.qty, 0);
+  showModal(`
+    <h2>💳 Payment</h2>
+    <p>Total: <b style="font-size:20px;color:#27ae60">$${total.toFixed(2)}</b></p>
+    <input id="customerPhone" placeholder="Customer phone (for mobile money)" value="0555123456">
+    <input id="customerName" placeholder="Customer name (for receipt & database)" value="Walk-in Customer">
+    <p style="margin:14px 0 8px;font-size:13px;font-weight:600">Select payment method:</p>
+    <div class="payment-options" id="payOptions">
+      <div class="pay-opt" data-method="MTN MoMo" onclick="selectPay(this)">📱 MTN Mobile Money</div>
+      <div class="pay-opt" data-method="M-Pesa" onclick="selectPay(this)">📱 M-Pesa (Safaricom)</div>
+      <div class="pay-opt" data-method="Airtel Money" onclick="selectPay(this)">📱 Airtel Money</div>
+      <div class="pay-opt" data-method="Cash" onclick="selectPay(this)">💵 Cash</div>
+    </div>
+    <button class="btn btn-success" style="width:100%" onclick="processPayment()">Pay Now</button>
+    <button class="btn" style="width:100%;margin-top:8px;background:#eee" onclick="closeModal()">Cancel</button>
+  `);
+}
+
+let selectedPay = null;
+function selectPay(el) {
+  document.querySelectorAll('.pay-opt').forEach(x => x.classList.remove('selected'));
+  el.classList.add('selected');
+  selectedPay = el.dataset.method;
+}
+
+function processPayment() {
+  if (!selectedPay) { alert('Select a payment method!'); return; }
+  const phone = document.getElementById('customerPhone').value;
+  const cname = document.getElementById('customerName').value;
+  const total = cart.reduce((s, i) => s + i.price * i.qty, 0);
+
+  closeModal();
+  showModal(`<h2>⏳ Processing...</h2>
+    <p style="padding:20px 0;text-align:center">Sending payment request to ${phone} via ${selectedPay}...</p>
+    <p style="text-align:center;color:#888;font-size:12px">Customer should enter PIN on their phone.</p>`);
+
+  setTimeout(() => finalizeOrder(total, phone, cname), 2500);
+}
+
+function finalizeOrder(total, phone, cname) {
+  const ref = 'TXN' + Date.now();
+
+  const products = DB.get('products');
+  cart.forEach(item => {
+    const p = products.find(x => x.id === item.id);
+    if (p) p.stock -= item.qty;
+  });
+  DB.set('products', products);
+
+  const movements = DB.get('stockMovements');
+  cart.forEach(item => {
+    movements.push({
+      id: DB.nextId('stockMovements'),
+      productId: item.id,
+      productName: item.name,
+      qty: -item.qty,
+      type: 'sale',
+      requestedBy: session.name,
+      receivedBy: cname,
+      timestamp: new Date().toISOString(),
+      ref: ref,
+    });
+  });
+  DB.set('stockMovements', movements);
+
+  const order = {
+    id: DB.nextId('orders'),
+    ref, items: [...cart], total,
+    paymentMethod: selectedPay,
+    customerPhone: phone,
+    customerName: cname,
+    cashier: session.name,
+    date: new Date().toISOString(),
+    status: 'paid',
+  };
+  const orders = DB.get('orders');
+  orders.push(order);
+  DB.set('orders', orders);
+
+  const customers = DB.get('customers');
+  let cust = customers.find(c => c.phone === phone);
+  if (cust) { cust.totalSpent += total; cust.visits++; cust.lastVisit = order.date; }
+  else { customers.push({ id: DB.nextId('customers'), name: cname, phone, totalSpent: total, visits: 1, lastVisit: order.date }); }
+  DB.set('customers', customers);
+
+  cart = [];
+  showReceipt(order);
+}
+
+function showReceipt(order) {
+  const lines = order.items.map(i =>
+    `<div class="line"><span>${i.name} x${i.qty}</span><span>$${(i.price*i.qty).toFixed(2)}</span></div>`
+  ).join('');
+  showModal(`
+    <div class="receipt">
+      <div style="text-align:center">
+        <h2>🍔 SMARTPOS RESTAURANT</h2>
+        <p>123 Main Street</p>
+        <p>Tel: 0555-123456</p>
+      </div>
+      <hr>
+      <div class="line"><span>Receipt:</span><span>${order.ref}</span></div>
+      <div class="line"><span>Date:</span><span>${new Date(order.date).toLocaleString()}</span></div>
+      <div class="line"><span>Cashier:</span><span>${order.cashier}</span></div>
+      <div class="line"><span>Customer:</span><span>${order.customerName}</span></div>
+      <hr>
+      ${lines}
+      <hr>
+      <div class="line"><b>TOTAL</b><b>$${order.total.toFixed(2)}</b></div>
+      <div class="line"><span>Paid via:</span><span>${order.paymentMethod}</span></div>
+      <hr>
+      <p style="text-align:center;margin-top:10px">Thank you for your business! 🙏</p>
+    </div>
+    <button class="btn btn-primary" style="margin-top:14px" onclick="closeModal();navigate('pos')">New Sale</button>
+  `);
+  renderPOS();
+}
+
+/* ============================================================
+   MODULE 2: WAREHOUSE
+   ============================================================ */
+function renderWarehouse() {
+  const products = DB.get('products');
+  const movements = DB.get('stockMovements').slice().reverse();
+  const mc = document.getElementById('mainContent');
+  mc.innerHTML = `
+    <h1 class="page-title">📦 Warehouse Management</h1>
+    <div class="stats-grid">
+      <div class="stat-card"><div class="label">Total Products</div><div class="value">${products.length}</div></div>
+      <div class="stat-card"><div class="label">Low Stock (&lt;10)</div><div class="value">${products.filter(p=>p.stock<10).length}</div></div>
+      <div class="stat-card"><div class="label">Stock Movements</div><div class="value">${movements.length}</div></div>
+    </div>
+    <div class="card">
+      <h3>Current Stock</h3>
+      <table>
+        <thead><tr><th>Product</th><th>Price</th><th>Stock</th><th>Status</th>${session.role==='manager'?'<th>Adjust</th>':''}</tr></thead>
+        <tbody>${products.map(p=>`
+          <tr>
+            <td>${p.name}</td>
+            <td>$${p.price.toFixed(2)}</td>
+            <td>${p.stock}</td>
+            <td>${p.stock<10?'<span class="badge badge-red">Low</span>':p.stock<30?'<span class="badge badge-orange">Medium</span>':'<span class="badge badge-green">OK</span>'}</td>
+            ${session.role==='manager'?`<td><button class="btn btn-warning btn-sm" onclick="adjustStock(${p.id})">Adjust</button></td>`:''}
+          </tr>`).join('')}</tbody>
+      </table>
+    </div>
+    <div class="card">
+      <h3>Stock Movement Audit Trail</h3>
+      ${movements.length===0?'<p class="empty">No movements yet</p>':`
+      <table>
+        <thead><tr><th>Time</th><th>Product</th><th>Qty</th><th>Type</th><th>Requested By</th><th>Received By</th><th>Ref</th></tr></thead>
+        <tbody>${movements.slice(0,50).map(m=>`
+          <tr>
+            <td>${new Date(m.timestamp).toLocaleString()}</td>
+            <td>${m.productName}</td>
+            <td>${m.qty>0?'+':''}${m.qty}</td>
+            <td>${m.type}</td>
+            <td>${m.requestedBy}</td>
+            <td>${m.receivedBy}</td>
+            <td>${m.ref||'-'}</td>
+          </tr>`).join('')}</tbody>
+      </table>`}
+    </div>
+    ${session.role==='worker'?`
+    <div class="card">
+      <h3>Request Stock from Warehouse</h3>
+      <div class="form-row">
+        <select id="reqProduct">${products.map(p=>`<option value="${p.id}">${p.name}</option>`).join('')}</select>
+        <input id="reqQty" type="number" placeholder="Quantity" value="1" min="1">
+        <input id="reqReceiver" placeholder="Receiver name" value="${session.name}">
+        <button class="btn btn-primary" onclick="requestStock()">Submit Request</button>
+      </div>
+    </div>`:''}
+  `;
+}
+
+function adjustStock(id) {
+  const products = DB.get('products');
+  const p = products.find(x => x.id === id);
+  const qty = prompt(`Adjust stock for ${p.name} (current: ${p.stock}). Enter +/- amount:`);
+  if (!qty) return;
+  const delta = parseInt(qty);
+  if (isNaN(delta)) return;
+  p.stock += delta;
+  DB.set('products', products);
+  const movements = DB.get('stockMovements');
+  movements.push({
+    id: DB.nextId('stockMovements'), productId: p.id, productName: p.name,
+    qty: delta, type: 'adjustment', requestedBy: session.name, receivedBy: session.name,
+    timestamp: new Date().toISOString(), ref: 'ADJ'+Date.now(),
+  });
+  DB.set('stockMovements', movements);
+  renderWarehouse();
+}
+
+function requestStock() {
+  const pid = parseInt(document.getElementById('reqProduct').value);
+  const qty = parseInt(document.getElementById('reqQty').value);
+  const receiver = document.getElementById('reqReceiver').value;
+  if (!qty || qty <= 0) { alert('Invalid quantity'); return; }
+  const products = DB.get('products');
+  const p = products.find(x => x.id === pid);
+  if (p.stock < qty) { alert('Not enough stock!'); return; }
+  p.stock -= qty;
+  DB.set('products', products);
+  const movements = DB.get('stockMovements');
+  movements.push({
+    id: DB.nextId('stockMovements'), productId: p.id, productName: p.name,
+    qty: -qty, type: 'warehouse_request', requestedBy: session.name, receivedBy: receiver,
+    timestamp: new Date().toISOString(), ref: 'REQ'+Date.now(),
+  });
+  DB.set('stockMovements', movements);
+  alert('Stock request recorded!');
+  renderWarehouse();
+}
+
+/* ============================================================
+   MODULE 3: MANAGER DASHBOARD
+   ============================================================ */
+function renderDashboard() {
+  if (session.role !== 'manager') {
+    document.getElementById('mainContent').innerHTML = '<p class="empty">Access denied.</p>';
+    return;
+  }
+
+  const orders = DB.get('orders');
+  const today = new Date().toDateString();
+  const thisWeek = getWeekStart();
+  const thisMonth = new Date().getMonth();
+
+  const todayOrders = orders.filter(o => new Date(o.date).toDateString() === today);
+  const weekOrders = orders.filter(o => new Date(o.date) >= thisWeek);
+  const monthOrders = orders.filter(o => new Date(o.date).getMonth() === thisMonth);
+  const sum = arr => arr.reduce((s, o) => s + o.total, 0);
+
+  document.getElementById('mainContent').innerHTML = `
+    <h1 class="page-title">📊 Sales Dashboard <span class="badge badge-purple">Manager Only</span></h1>
+    <div class="stats-grid">
+      <div class="stat-card"><div class="label">Today's Sales</div><div class="value">$${sum(todayOrders).toFixed(2)}</div></div>
+      <div class="stat-card" style="border-color:#27ae60"><div class="label">This Week</div><div class="value">$${sum(weekOrders).toFixed(2)}</div></div>
+      <div class="stat-card" style="border-color:#f39c12"><div class="label">This Month</div><div class="value">$${sum(monthOrders).toFixed(2)}</div></div>
+      <div class="stat-card" style="border-color:#e74c3c"><div class="label">Total Orders</div><div class="value">${orders.length}</div></div>
+    </div>
+    <div class="card">
+      <h3>Sales Breakdown</h3>
+      <table>
+        <thead><tr><th>Period</th><th>Orders</th><th>Revenue</th><th>Avg Order</th></tr></thead>
+        <tbody>
+          <tr><td>Today</td><td>${todayOrders.length}</td><td>$${sum(todayOrders).toFixed(2)}</td><td>$${todayOrders.length?(sum(todayOrders)/todayOrders.length).toFixed(2):'0.00'}</td></tr>
+          <tr><td>This Week</td><td>${weekOrders.length}</td><td>$${sum(weekOrders).toFixed(2)}</td><td>$${weekOrders.length?(sum(weekOrders)/weekOrders.length).toFixed(2):'0.00'}</td></tr>
+          <tr><td>This Month</td><td>${monthOrders.length}</td><td>$${sum(monthOrders).toFixed(2)}</td><td>$${monthOrders.length?(sum(monthOrders)/monthOrders.length).toFixed(2):'0.00'}</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="card">
+      <h3>Recent Transactions</h3>
+      ${orders.length===0?'<p class="empty">No sales yet</p>':`
+      <table>
+        <thead><tr><th>Ref</th><th>Customer</th><th>Cashier</th><th>Amount</th><th>Payment</th><th>Time</th></tr></thead>
+        <tbody>${orders.slice(-15).reverse().map(o=>`
+          <tr><td>${o.ref}</td><td>${o.customerName}</td><td>${o.cashier}</td><td>$${o.total.toFixed(2)}</td><td>${o.paymentMethod}</td><td>${new Date(o.date).toLocaleString()}</td></tr>
+        `).join('')}</tbody>
+      </table>`}
+    </div>
+  `;
+}
+
+function getWeekStart() {
+  const d = new Date();
+  const day = d.getDay();
+  d.setDate(d.getDate() - day);
+  d.setHours(0,0,0,0);
+  return d;
+}
+
+/* ============================================================
+   MODULE 4: RIDERS
+   ============================================================ */
+function renderRiders() {
+  const orders = DB.get('orders').filter(o => o.status === 'paid' || o.status === 'delivering');
+  const deliveries = DB.get('deliveries');
+  const riders = DB.get('users').filter(u => u.role === 'rider');
+
+  document.getElementById('mainContent').innerHTML = `
+    <h1 class="page-title">🛵 Riders & Deliveries</h1>
+    <div class="card">
+      <h3>Assign Rider to Order</h3>
+      ${orders.length===0?'<p class="empty">No paid orders awaiting delivery</p>':
+        riders.length===0?'<p class="empty">No riders yet. Create a rider account in <b>User Management</b> first.</p>':`
+      <div class="form-row">
+        <select id="delOrder">${orders.map(o=>`<option value="${o.id}">#${o.id} — ${o.customerName} — $${o.total.toFixed(2)}</option>`).join('')}</select>
+        <select id="delRider">${riders.map(r=>`<option value="${r.username}">${r.name}</option>`).join('')}</select>
+        <button class="btn btn-primary" onclick="assignRider()">Assign Rider</button>
+      </div>`}
+    </div>
+    <div class="card">
+      <h3>Active Deliveries</h3>
+      ${deliveries.length===0?'<p class="empty">No deliveries assigned</p>':`
+      <table>
+        <thead><tr><th>Order</th><th>Rider</th><th>Status</th><th>Assigned</th><th>Delivered</th></tr></thead>
+        <tbody>${deliveries.map(d=>{
+          const order = DB.get('orders').find(o=>o.id===d.orderId) || {};
+          const rider = DB.get('users').find(r=>r.username===d.riderUsername) || {};
+          return `<tr>
+            <td>#${d.orderId} — ${order.customerName||''}</td>
+            <td>${rider.name||'?'}</td>
+            <td>${statusBadge(d.status)}</td>
+            <td>${new Date(d.assignedAt).toLocaleString()}</td>
+            <td>${d.deliveredAt?new Date(d.deliveredAt).toLocaleString():'-'}</td>
+          </tr>`;
+        }).join('')}</tbody>
+      </table>`}
+    </div>
+  `;
+}
+
+function statusBadge(s) {
+  const map = { assigned:'orange', picked_up:'blue', en_route:'blue', delivered:'green' };
+  return `<span class="badge badge-${map[s]||'blue'}">${s.replace('_',' ')}</span>`;
+}
+
+function assignRider() {
+  const orderId = parseInt(document.getElementById('delOrder').value);
+  const riderUsername = document.getElementById('delRider').value;
+  const deliveries = DB.get('deliveries');
+  if (deliveries.find(d => d.orderId === orderId && d.status !== 'delivered')) {
+    alert('This order already has an active delivery'); return;
+  }
+  deliveries.push({
+    id: DB.nextId('deliveries'), orderId, riderUsername,
+    status: 'assigned',
+    assignedAt: new Date().toISOString(),
+    pickedUpAt: null, deliveredAt: null,
+  });
+  DB.set('deliveries', deliveries);
+  alert('Rider assigned!');
+  renderRiders();
+}
+
+function renderRiderDeliveries() {
+  const deliveries = DB.get('deliveries').filter(d => d.riderUsername === session.username);
+
+  document.getElementById('mainContent').innerHTML = `
+    <h1 class="page-title">🛵 My Deliveries — ${session.name}</h1>
+    ${deliveries.length===0?'<p class="empty">No deliveries assigned yet</p>':`
+    <div class="card">
+      <table>
+        <thead><tr><th>Order</th><th>Customer</th><th>Amount</th><th>Status</th><th>Action</th></tr></thead>
+        <tbody>${deliveries.map(d=>{
+          const order = DB.get('orders').find(o=>o.id===d.orderId) || {};
+          return `<tr>
+            <td>#${d.orderId}</td>
+            <td>${order.customerName||'-'}<br><small>${order.customerPhone||''}</small></td>
+            <td>$${(order.total||0).toFixed(2)}</td>
+            <td>${statusBadge(d.status)}</td>
+            <td>
+              ${d.status==='assigned'?`<button class="btn btn-primary btn-sm" onclick="updateDelivery(${d.id},'picked_up')">Pick Up</button>`:''}
+              ${d.status==='picked_up'?`<button class="btn btn-warning btn-sm" onclick="updateDelivery(${d.id},'en_route')">En Route</button>`:''}
+              ${d.status==='en_route'?`<button class="btn btn-success btn-sm" onclick="updateDelivery(${d.id},'delivered')">Delivered</button>`:''}
+              ${d.status==='delivered'?'✅ Done':''}
+            </td>
+          </tr>`;
+        }).join('')}</tbody>
+      </table>
+    </div>`}
+  `;
+}
+
+function updateDelivery(id, status) {
+  const deliveries = DB.get('deliveries');
+  const d = deliveries.find(x => x.id === id);
+  if (!d) return;
+  d.status = status;
+  if (status === 'picked_up') d.pickedUpAt = new Date().toISOString();
+  if (status === 'delivered') {
+    d.deliveredAt = new Date().toISOString();
+    const orders = DB.get('orders');
+    const order = orders.find(o => o.id === d.orderId);
+    if (order) order.status = 'delivered';
+    DB.set('orders', orders);
+    alert(`✅ Restaurant notified: Order #${d.orderId} was delivered successfully!`);
+  }
+  DB.set('deliveries', deliveries);
+  renderRiderDeliveries();
+}
+
+/* ============================================================
+   MODULE 5: CUSTOMERS
+   ============================================================ */
+function renderCustomers() {
+  const customers = DB.get('customers');
+  document.getElementById('mainContent').innerHTML = `
+    <h1 class="page-title">👥 Customer Dashboard</h1>
+    <div class="stats-grid">
+      <div class="stat-card"><div class="label">Total Customers</div><div class="value">${customers.length}</div></div>
+      <div class="stat-card" style="border-color:#27ae60"><div class="label">Total Revenue</div><div class="value">$${customers.reduce((s,c)=>s+c.totalSpent,0).toFixed(2)}</div></div>
+      <div class="stat-card" style="border-color:#f39c12"><div class="label">Avg Spend</div><div class="value">$${customers.length?(customers.reduce((s,c)=>s+c.totalSpent,0)/customers.length).toFixed(2):'0.00'}</div></div>
+    </div>
+    <div class="card">
+      <h3>Customer List</h3>
+      ${customers.length===0?'<p class="empty">No customers yet — they appear automatically after each sale</p>':`
+      <table>
+        <thead><tr><th>Name</th><th>Phone</th><th>Total Spent</th><th>Visits</th><th>Last Visit</th></tr></thead>
+        <tbody>${customers.slice().reverse().map(c=>`
+          <tr><td>${c.name}</td><td>${c.phone}</td><td>$${c.totalSpent.toFixed(2)}</td><td>${c.visits}</td><td>${new Date(c.lastVisit).toLocaleString()}</td></tr>
+        `).join('')}</tbody>
+      </table>`}
+    </div>
+  `;
+}
+
+/* ============================================================
+   MODULE 6: USER MANAGEMENT (MANAGER ONLY)
+   ============================================================ */
+function renderUsers() {
+  if (session.role !== 'manager') {
+    document.getElementById('mainContent').innerHTML = '<p class="empty">Access denied.</p>';
+    return;
+  }
+
+  const users = DB.get('users');
+  document.getElementById('mainContent').innerHTML = `
+    <h1 class="page-title">🔐 User Management <span class="badge badge-purple">Manager Only</span></h1>
+
+    <div class="card">
+      <h3>➕ Create New User Account</h3>
+      <div class="form-row">
+        <input id="nuUsername" placeholder="Username (login name)">
+        <input id="nuName" placeholder="Full name">
+      </div>
+      <div class="form-row">
+        <input id="nuPassword" type="password" placeholder="Password (optional — leave blank for no password)">
+        <input id="nuPhone" placeholder="Phone (optional)">
+      </div>
+      <div class="form-row">
+        <select id="nuRole">
+          <option value="worker">👷 Worker</option>
+          <option value="rider">🛵 Rider</option>
+          <option value="manager">👔 Manager</option>
+        </select>
+        <button class="btn btn-success" style="flex:1" onclick="createUser()">Create Account</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>👥 All Users (${users.length})</h3>
+      <table>
+        <thead><tr><th>Username</th><th>Full Name</th><th>Role</th><th>Password</th><th>Phone</th><th>Actions</th></tr></thead>
+        <tbody>${users.map(u=>`
+          <tr>
+            <td><b>${u.username}</b></td>
+            <td>${u.name}</td>
+            <td>${roleBadge(u.role)}</td>
+            <td>${u.password ? '••••' : '<span class="badge badge-orange">empty</span>'}</td>
+            <td>${u.phone || '-'}</td>
+            <td>
+              <button class="btn btn-warning btn-sm" onclick="resetPassword('${u.username}')">Reset Password</button>
+              ${u.username !== 'manager' ? `<button class="btn btn-danger btn-sm" onclick="deleteUser('${u.username}')">Delete</button>` : '<span class="badge badge-blue">Protected</span>'}
+            </td>
+          </tr>`).join('')}</tbody>
+      </table>
+    </div>
+  `;
+}
+
+function roleBadge(role) {
+  const map = { manager: 'purple', worker: 'blue', rider: 'orange' };
+  return `<span class="badge badge-${map[role]||'blue'}">${role}</span>`;
+}
+
+function createUser() {
+  const username = document.getElementById('nuUsername').value.trim().toLowerCase();
+  const name = document.getElementById('nuName').value.trim();
+  const password = document.getElementById('nuPassword').value; // may be empty
+  const phone = document.getElementById('nuPhone').value.trim();
+  const role = document.getElementById('nuRole').value;
+
+  if (!username || !name) { alert('Please fill username and full name.'); return; }
+
+  const users = DB.get('users');
+  if (users.find(u => u.username === username)) {
+    alert('That username already exists. Please choose another.'); return;
+  }
+
+  users.push({ username, name, password, role, phone });
+  DB.set('users', users);
+  alert(`✅ Account created!\n\nUsername: ${username}\nRole: ${role}\nPassword: ${password ? 'set' : 'EMPTY (can log in with blank password)'}`);
+  renderUsers();
+}
+
+function resetPassword(username) {
+  const newPass = prompt(`Enter new password for "${username}" (leave blank for no password):`);
+  if (newPass === null) return; // user cancelled
+  const users = DB.get('users');
+  const u = users.find(x => x.username === username);
+  if (!u) return;
+  u.password = newPass; // empty string allowed
+  DB.set('users', users);
+  alert(`✅ Password updated for ${username}${newPass ? '' : ' (now empty — blank login allowed)'}.`);
+  renderUsers();
+}
+
+function deleteUser(username) {
+  if (username === 'manager') { alert('The default manager account cannot be deleted.'); return; }
+  if (!confirm(`Delete user "${username}"? This cannot be undone.`)) return;
+  const users = DB.get('users').filter(u => u.username !== username);
+  DB.set('users', users);
+  alert('User deleted.');
+  renderUsers();
+}
+
+/* ============================================================
+   MODAL HELPERS
+   ============================================================ */
+function showModal(html) {
+  document.getElementById('modalContainer').innerHTML = `<div class="modal"><div class="modal-box">${html}</div></div>`;
+}
+function closeModal() {
+  document.getElementById('modalContainer').innerHTML = '';
+}
+</script>
+</body>
+</html><!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SmartPOS — Restaurant & Warehouse System</title>
+<style>
+/* ============ GLOBAL ============ */
+* { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', Tahoma, sans-serif; }
+body { background: #f4f6f9; color: #2c3e50; }
+.hidden { display: none !important; }
+
+/* ============ LOGIN ============ */
+#loginScreen {
+  display: flex; align-items: center; justify-content: center;
+  height: 100vh; background: linear-gradient(135deg, #667eea, #764ba2);
+}
+.login-box {
+  background: #fff; padding: 40px; border-radius: 16px;
+  width: 380px; box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+}
+.login-box h1 { text-align: center; margin-bottom: 8px; color: #4a3f8f; }
+.login-box p { text-align: center; color: #888; margin-bottom: 24px; font-size: 13px; }
+.login-box input {
+  width: 100%; padding: 12px; margin-bottom: 14px;
+  border: 1px solid #ddd; border-radius: 8px; font-size: 14px;
+}
+.btn {
+  padding: 12px 20px; border: none; border-radius: 8px;
+  cursor: pointer; font-size: 14px; font-weight: 600;
+  transition: 0.2s;
+}
+.btn-primary { background: #667eea; color: #fff; width: 100%; }
+.btn-primary:hover { background: #5568d3; }
+.btn-success { background: #27ae60; color: #fff; }
+.btn-danger { background: #e74c3c; color: #fff; }
+.btn-warning { background: #f39c12; color: #fff; }
+.btn-sm { padding: 6px 12px; font-size: 12px; }
+
+/* ============ LAYOUT ============ */
+#app { display: flex; height: 100vh; }
+.sidebar {
+  width: 240px; background: #2c3e50; color: #fff;
+  display: flex; flex-direction: column; padding: 20px 0;
+}
+.sidebar h2 { padding: 0 20px 20px; font-size: 20px; border-bottom: 1px solid #34495e; }
+.sidebar .user-info {
+  padding: 15px 20px; font-size: 13px; color: #bdc3c7;
+  border-bottom: 1px solid #34495e;
+}
+.sidebar nav a {
+  display: block; padding: 14px 20px; color: #ecf0f1;
+  text-decoration: none; cursor: pointer; font-size: 14px;
+  border-left: 3px solid transparent;
+}
+.sidebar nav a:hover, .sidebar nav a.active {
+  background: #34495e; border-left-color: #667eea;
+}
+.sidebar .logout { margin-top: auto; padding: 20px; }
+.main { flex: 1; overflow-y: auto; padding: 24px; }
+.page-title { font-size: 24px; margin-bottom: 20px; color: #2c3e50; }
+
+/* ============ CARDS ============ */
+.card {
+  background: #fff; border-radius: 12px; padding: 20px;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.05); margin-bottom: 20px;
+}
+.card h3 { margin-bottom: 14px; font-size: 16px; color: #34495e; }
+.stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; margin-bottom: 20px; }
+.stat-card {
+  background: #fff; padding: 20px; border-radius: 12px;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.05); border-left: 4px solid #667eea;
+}
+.stat-card .label { font-size: 12px; color: #7f8c8d; text-transform: uppercase; }
+.stat-card .value { font-size: 24px; font-weight: 700; color: #2c3e50; margin-top: 6px; }
+
+/* ============ POS ============ */
+.pos-layout { display: grid; grid-template-columns: 1fr 380px; gap: 20px; }
+.menu-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
+.menu-item {
+  background: #fff; padding: 16px; border-radius: 10px;
+  cursor: pointer; text-align: center; box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+  transition: 0.2s; border: 2px solid transparent;
+}
+.menu-item:hover { transform: translateY(-2px); border-color: #667eea; }
+.menu-item .name { font-weight: 600; font-size: 14px; }
+.menu-item .price { color: #27ae60; font-weight: 700; margin-top: 6px; }
+.cart { background: #fff; border-radius: 12px; padding: 20px; height: fit-content; position: sticky; top: 0; }
+.cart-item { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #eee; font-size: 14px; }
+.cart-item .qty { color: #667eea; font-weight: 600; }
+.cart-total { font-size: 20px; font-weight: 700; margin: 16px 0; text-align: right; color: #2c3e50; }
+
+/* ============ TABLES ============ */
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th, td { padding: 12px; text-align: left; border-bottom: 1px solid #eee; }
+th { background: #f8f9fa; font-weight: 600; color: #34495e; }
+tr:hover { background: #f8f9fa; }
+
+/* ============ MODAL ============ */
+.modal {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.6);
+  display: flex; align-items: center; justify-content: center; z-index: 1000;
+}
+.modal-box {
+  background: #fff; border-radius: 16px; padding: 30px;
+  width: 460px; max-width: 90%; max-height: 90vh; overflow-y: auto;
+}
+.modal-box h2 { margin-bottom: 16px; }
+.modal-box input, .modal-box select {
+  width: 100%; padding: 10px; margin-bottom: 12px;
+  border: 1px solid #ddd; border-radius: 8px;
+}
+.payment-options { display: grid; gap: 10px; margin: 16px 0; }
+.pay-opt {
+  padding: 14px; border: 2px solid #ddd; border-radius: 10px;
+  cursor: pointer; text-align: center; font-weight: 600;
+}
+.pay-opt:hover { border-color: #667eea; }
+.pay-opt.selected { border-color: #667eea; background: #eef1fd; }
+
+/* ============ RECEIPT ============ */
+.receipt {
+  font-family: 'Courier New', monospace; font-size: 13px;
+  padding: 20px; background: #fff; border: 1px dashed #999;
+}
+.receipt hr { border: none; border-top: 1px dashed #999; margin: 10px 0; }
+.receipt .line { display: flex; justify-content: space-between; }
+
+.badge { padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: 600; }
+.badge-green { background: #d4edda; color: #155724; }
+.badge-orange { background: #ffe4b5; color: #8a5300; }
+.badge-red { background: #f8d7da; color: #721c24; }
+.badge-blue { background: #d1ecf1; color: #0c5460; }
+.badge-purple { background: #e2d9f3; color: #4a1e8c; }
+
+.form-row { display: flex; gap: 10px; margin-bottom: 12px; }
+.form-row input, .form-row select { flex: 1; padding: 10px; border: 1px solid #ddd; border-radius: 8px; }
+.empty { text-align: center; color: #aaa; padding: 30px; }
+</style>
+</head>
+<body>
+
+<!-- ==================== LOGIN ==================== -->
+<div id="loginScreen">
+  <div class="login-box">
+    <h1>🍔 SmartPOS</h1>
+    <p>Restaurant & Warehouse Management System</p>
+    <input id="loginUser" placeholder="Username" value="manager">
+    <input id="loginPass" type="password" placeholder="Password (optional)">
+    <button class="btn btn-primary" onclick="login()">Login</button>
+    <p style="margin-top:16px;font-size:11px;color:#aaa;text-align:center">
+      Password is optional — leave blank to log in
+    </p>
+  </div>
+</div>
+
+<!-- ==================== APP ==================== -->
+<div id="app" class="hidden">
+  <aside class="sidebar">
+    <h2>🍔 SmartPOS</h2>
+    <div class="user-info">
+      <div id="currentUser"></div>
+      <div id="currentRole" style="color:#667eea;font-weight:600"></div>
+    </div>
+    <nav id="navMenu"></nav>
+    <div class="logout">
+      <button class="btn btn-danger btn-sm" style="width:100%" onclick="logout()">Logout</button>
+    </div>
+  </aside>
+  <main class="main" id="mainContent"></main>
+</div>
+
+<!-- ==================== MODALS ==================== -->
+<div id="modalContainer"></div>
+
+<script>
+/* ============================================================
+   DATABASE (localStorage)
+   ============================================================ */
+const DB = {
+  init() {
+    if (!localStorage.getItem('pos_initialized')) {
+      this.set('products', [
+        { id: 1, name: 'Chicken Burger', price: 25.00, stock: 50 },
+        { id: 2, name: 'Beef Pizza', price: 45.00, stock: 30 },
+        { id: 3, name: 'French Fries', price: 12.00, stock: 100 },
+        { id: 4, name: 'Coca Cola', price: 8.00, stock: 200 },
+        { id: 5, name: 'Grilled Chicken', price: 38.00, stock: 25 },
+        { id: 6, name: 'Rice & Beans', price: 18.00, stock: 60 },
+        { id: 7, name: 'Milkshake', price: 15.00, stock: 40 },
+        { id: 8, name: 'Chicken Wings', price: 30.00, stock: 35 },
+      ]);
+      this.set('orders', []);
+      this.set('stockMovements', []);
+      this.set('customers', []);
+      this.set('deliveries', []);
+      this.set('riders', []);
+      this.set('users', [
+        { username: 'manager', name: 'Manager', password: '1234', role: 'manager', phone: '' },
+      ]);
+      localStorage.setItem('pos_initialized', '1');
+    }
+  },
+  get(k) { return JSON.parse(localStorage.getItem('pos_' + k) || '[]'); },
+  set(k, v) { localStorage.setItem('pos_' + k, JSON.stringify(v)); },
+  nextId(k) {
+    const arr = this.get(k);
+    return arr.length ? Math.max(...arr.map(x => x.id || 0)) + 1 : 1;
+  }
+};
+DB.init();
+
+/* ============================================================
+   SESSION
+   ============================================================ */
+let session = null;
+let cart = [];
+
+/* ============================================================
+   LOGIN — empty password is allowed
+   ============================================================ */
+function login() {
+  const username = document.getElementById('loginUser').value.trim().toLowerCase();
+  const password = document.getElementById('loginPass').value;
+
+  const users = DB.get('users');
+  const user = users.find(u =>
+    u.username === username && (password === '' || u.password === password)
+  );
+
+  if (!user) { alert('Invalid username or password!'); return; }
+
+  session = user;
+  document.getElementById('loginScreen').classList.add('hidden');
+  document.getElementById('app').classList.remove('hidden');
+  document.getElementById('currentUser').textContent = '👤 ' + session.name;
+  document.getElementById('currentRole').textContent = session.role.toUpperCase();
+  buildNav();
+  navigate(user.role === 'rider' ? 'riderDeliveries' : user.role === 'manager' ? 'dashboard' : 'pos');
+}
+
+function logout() {
+  session = null; cart = [];
+  document.getElementById('app').classList.add('hidden');
+  document.getElementById('loginScreen').classList.remove('hidden');
+  document.getElementById('loginUser').value = '';
+  document.getElementById('loginPass').value = '';
+}
+
+/* ============================================================
+   NAVIGATION (role-based)
+   ============================================================ */
+function buildNav() {
+  const nav = document.getElementById('navMenu');
+  let links = '';
+  if (session.role === 'manager') {
+    links = `
+      <a onclick="navigate('dashboard')">📊 Sales Dashboard</a>
+      <a onclick="navigate('pos')">💳 POS Checkout</a>
+      <a onclick="navigate('warehouse')">📦 Warehouse</a>
+      <a onclick="navigate('riders')">🛵 Riders & Deliveries</a>
+      <a onclick="navigate('customers')">👥 Customers</a>
+      <a onclick="navigate('users')">🔐 User Management</a>`;
+  } else if (session.role === 'worker') {
+    links = `
+      <a onclick="navigate('pos')">💳 POS Checkout</a>
+      <a onclick="navigate('warehouse')">📦 Stock Requests</a>`;
+  } else if (session.role === 'rider') {
+    links = `
+      <a onclick="navigate('riderDeliveries')">🛵 My Deliveries</a>`;
+  }
+  nav.innerHTML = links;
+}
+
+function navigate(page) {
+  if (page === 'dashboard' && session.role !== 'manager') {
+    alert('Access denied. Only managers can view sales data.');
+    return;
+  }
+  if (page === 'users' && session.role !== 'manager') {
+    alert('Access denied. Only managers can manage users.');
+    return;
+  }
+  document.querySelectorAll('#navMenu a').forEach(a => a.classList.remove('active'));
+  const pages = {
+    dashboard: renderDashboard,
+    pos: renderPOS,
+    warehouse: renderWarehouse,
+    riders: renderRiders,
+    customers: renderCustomers,
+    users: renderUsers,
+    riderDeliveries: renderRiderDeliveries,
+  };
+  if (pages[page]) pages[page]();
+}
+
+/* ============================================================
+   MODULE 1: POS CHECKOUT
+   ============================================================ */
+function renderPOS() {
+  const products = DB.get('products');
+  const mc = document.getElementById('mainContent');
+  mc.innerHTML = `
+    <h1 class="page-title">💳 POS Checkout</h1>
+    <div class="pos-layout">
+      <div>
+        <div class="card">
+          <h3>Menu</h3>
+          <div class="menu-grid" id="menuGrid"></div>
+        </div>
+      </div>
+      <div class="cart">
+        <h3>🛒 Cart</h3>
+        <div id="cartItems"><p class="empty">Cart is empty</p></div>
+        <div class="cart-total" id="cartTotal">Total: $0.00</div>
+        <button class="btn btn-success" style="width:100%" onclick="openPaymentModal()">Checkout & Pay</button>
+      </div>
+    </div>`;
+
+  const grid = document.getElementById('menuGrid');
+  grid.innerHTML = products.map(p => `
+    <div class="menu-item" onclick="addToCart(${p.id})">
+      <div class="name">${p.name}</div>
+      <div class="price">$${p.price.toFixed(2)}</div>
+      <div style="font-size:11px;color:#999;margin-top:4px">Stock: ${p.stock}</div>
+    </div>`).join('');
+
+  renderCart();
+}
+
+function addToCart(id) {
+  const products = DB.get('products');
+  const p = products.find(x => x.id === id);
+  if (p.stock <= 0) { alert('Out of stock!'); return; }
+  const item = cart.find(x => x.id === id);
+  if (item) item.qty++;
+  else cart.push({ id: p.id, name: p.name, price: p.price, qty: 1 });
+  renderCart();
+}
+
+function removeFromCart(id) {
+  cart = cart.filter(x => x.id !== id);
+  renderCart();
+}
+
+function renderCart() {
+  const el = document.getElementById('cartItems');
+  const totalEl = document.getElementById('cartTotal');
+  if (!el) return;
+  if (cart.length === 0) {
+    el.innerHTML = '<p class="empty">Cart is empty</p>';
+    totalEl.textContent = 'Total: $0.00';
+    return;
+  }
+  el.innerHTML = cart.map(i => `
+    <div class="cart-item">
+      <div><b>${i.name}</b><br><small>$${i.price.toFixed(2)}</small></div>
+      <div>
+        <span class="qty">x${i.qty}</span>
+        <button class="btn btn-danger btn-sm" onclick="removeFromCart(${i.id})">✕</button>
+      </div>
+    </div>`).join('');
+  const total = cart.reduce((s, i) => s + i.price * i.qty, 0);
+  totalEl.textContent = 'Total: $' + total.toFixed(2);
+}
+
+function openPaymentModal() {
+  if (cart.length === 0) { alert('Cart is empty!'); return; }
+  const total = cart.reduce((s, i) => s + i.price * i.qty, 0);
+  showModal(`
+    <h2>💳 Payment</h2>
+    <p>Total: <b style="font-size:20px;color:#27ae60">$${total.toFixed(2)}</b></p>
+    <input id="customerPhone" placeholder="Customer phone (for mobile money)" value="0555123456">
+    <input id="customerName" placeholder="Customer name (for receipt & database)" value="Walk-in Customer">
+    <p style="margin:14px 0 8px;font-size:13px;font-weight:600">Select payment method:</p>
+    <div class="payment-options" id="payOptions">
+      <div class="pay-opt" data-method="MTN MoMo" onclick="selectPay(this)">📱 MTN Mobile Money</div>
+      <div class="pay-opt" data-method="M-Pesa" onclick="selectPay(this)">📱 M-Pesa (Safaricom)</div>
+      <div class="pay-opt" data-method="Airtel Money" onclick="selectPay(this)">📱 Airtel Money</div>
+      <div class="pay-opt" data-method="Cash" onclick="selectPay(this)">💵 Cash</div>
+    </div>
+    <button class="btn btn-success" style="width:100%" onclick="processPayment()">Pay Now</button>
+    <button class="btn" style="width:100%;margin-top:8px;background:#eee" onclick="closeModal()">Cancel</button>
+  `);
+}
+
+let selectedPay = null;
+function selectPay(el) {
+  document.querySelectorAll('.pay-opt').forEach(x => x.classList.remove('selected'));
+  el.classList.add('selected');
+  selectedPay = el.dataset.method;
+}
+
+function processPayment() {
+  if (!selectedPay) { alert('Select a payment method!'); return; }
+  const phone = document.getElementById('customerPhone').value;
+  const cname = document.getElementById('customerName').value;
+  const total = cart.reduce((s, i) => s + i.price * i.qty, 0);
+
+  closeModal();
+  showModal(`<h2>⏳ Processing...</h2>
+    <p style="padding:20px 0;text-align:center">Sending payment request to ${phone} via ${selectedPay}...</p>
+    <p style="text-align:center;color:#888;font-size:12px">Customer should enter PIN on their phone.</p>`);
+
+  setTimeout(() => finalizeOrder(total, phone, cname), 2500);
+}
+
+function finalizeOrder(total, phone, cname) {
+  const ref = 'TXN' + Date.now();
+
+  const products = DB.get('products');
+  cart.forEach(item => {
+    const p = products.find(x => x.id === item.id);
+    if (p) p.stock -= item.qty;
+  });
+  DB.set('products', products);
+
+  const movements = DB.get('stockMovements');
+  cart.forEach(item => {
+    movements.push({
+      id: DB.nextId('stockMovements'),
+      productId: item.id,
+      productName: item.name,
+      qty: -item.qty,
+      type: 'sale',
+      requestedBy: session.name,
+      receivedBy: cname,
+      timestamp: new Date().toISOString(),
+      ref: ref,
+    });
+  });
+  DB.set('stockMovements', movements);
+
+  const order = {
+    id: DB.nextId('orders'),
+    ref, items: [...cart], total,
+    paymentMethod: selectedPay,
+    customerPhone: phone,
+    customerName: cname,
+    cashier: session.name,
+    date: new Date().toISOString(),
+    status: 'paid',
+  };
+  const orders = DB.get('orders');
+  orders.push(order);
+  DB.set('orders', orders);
+
+  const customers = DB.get('customers');
+  let cust = customers.find(c => c.phone === phone);
+  if (cust) { cust.totalSpent += total; cust.visits++; cust.lastVisit = order.date; }
+  else { customers.push({ id: DB.nextId('customers'), name: cname, phone, totalSpent: total, visits: 1, lastVisit: order.date }); }
+  DB.set('customers', customers);
+
+  cart = [];
+  showReceipt(order);
+}
+
+function showReceipt(order) {
+  const lines = order.items.map(i =>
+    `<div class="line"><span>${i.name} x${i.qty}</span><span>$${(i.price*i.qty).toFixed(2)}</span></div>`
+  ).join('');
+  showModal(`
+    <div class="receipt">
+      <div style="text-align:center">
+        <h2>🍔 SMARTPOS RESTAURANT</h2>
+        <p>123 Main Street</p>
+        <p>Tel: 0555-123456</p>
+      </div>
+      <hr>
+      <div class="line"><span>Receipt:</span><span>${order.ref}</span></div>
+      <div class="line"><span>Date:</span><span>${new Date(order.date).toLocaleString()}</span></div>
+      <div class="line"><span>Cashier:</span><span>${order.cashier}</span></div>
+      <div class="line"><span>Customer:</span><span>${order.customerName}</span></div>
+      <hr>
+      ${lines}
+      <hr>
+      <div class="line"><b>TOTAL</b><b>$${order.total.toFixed(2)}</b></div>
+      <div class="line"><span>Paid via:</span><span>${order.paymentMethod}</span></div>
+      <hr>
+      <p style="text-align:center;margin-top:10px">Thank you for your business! 🙏</p>
+    </div>
+    <button class="btn btn-primary" style="margin-top:14px" onclick="closeModal();navigate('pos')">New Sale</button>
+  `);
+  renderPOS();
+}
+
+/* ============================================================
+   MODULE 2: WAREHOUSE
+   ============================================================ */
+function renderWarehouse() {
+  const products = DB.get('products');
+  const movements = DB.get('stockMovements').slice().reverse();
+  const mc = document.getElementById('mainContent');
+  mc.innerHTML = `
+    <h1 class="page-title">📦 Warehouse Management</h1>
+    <div class="stats-grid">
+      <div class="stat-card"><div class="label">Total Products</div><div class="value">${products.length}</div></div>
+      <div class="stat-card"><div class="label">Low Stock (&lt;10)</div><div class="value">${products.filter(p=>p.stock<10).length}</div></div>
+      <div class="stat-card"><div class="label">Stock Movements</div><div class="value">${movements.length}</div></div>
+    </div>
+    <div class="card">
+      <h3>Current Stock</h3>
+      <table>
+        <thead><tr><th>Product</th><th>Price</th><th>Stock</th><th>Status</th>${session.role==='manager'?'<th>Adjust</th>':''}</tr></thead>
+        <tbody>${products.map(p=>`
+          <tr>
+            <td>${p.name}</td>
+            <td>$${p.price.toFixed(2)}</td>
+            <td>${p.stock}</td>
+            <td>${p.stock<10?'<span class="badge badge-red">Low</span>':p.stock<30?'<span class="badge badge-orange">Medium</span>':'<span class="badge badge-green">OK</span>'}</td>
+            ${session.role==='manager'?`<td><button class="btn btn-warning btn-sm" onclick="adjustStock(${p.id})">Adjust</button></td>`:''}
+          </tr>`).join('')}</tbody>
+      </table>
+    </div>
+    <div class="card">
+      <h3>Stock Movement Audit Trail</h3>
+      ${movements.length===0?'<p class="empty">No movements yet</p>':`
+      <table>
+        <thead><tr><th>Time</th><th>Product</th><th>Qty</th><th>Type</th><th>Requested By</th><th>Received By</th><th>Ref</th></tr></thead>
+        <tbody>${movements.slice(0,50).map(m=>`
+          <tr>
+            <td>${new Date(m.timestamp).toLocaleString()}</td>
+            <td>${m.productName}</td>
+            <td>${m.qty>0?'+':''}${m.qty}</td>
+            <td>${m.type}</td>
+            <td>${m.requestedBy}</td>
+            <td>${m.receivedBy}</td>
+            <td>${m.ref||'-'}</td>
+          </tr>`).join('')}</tbody>
+      </table>`}
+    </div>
+    ${session.role==='worker'?`
+    <div class="card">
+      <h3>Request Stock from Warehouse</h3>
+      <div class="form-row">
+        <select id="reqProduct">${products.map(p=>`<option value="${p.id}">${p.name}</option>`).join('')}</select>
+        <input id="reqQty" type="number" placeholder="Quantity" value="1" min="1">
+        <input id="reqReceiver" placeholder="Receiver name" value="${session.name}">
+        <button class="btn btn-primary" onclick="requestStock()">Submit Request</button>
+      </div>
+    </div>`:''}
+  `;
+}
+
+function adjustStock(id) {
+  const products = DB.get('products');
+  const p = products.find(x => x.id === id);
+  const qty = prompt(`Adjust stock for ${p.name} (current: ${p.stock}). Enter +/- amount:`);
+  if (!qty) return;
+  const delta = parseInt(qty);
+  if (isNaN(delta)) return;
+  p.stock += delta;
+  DB.set('products', products);
+  const movements = DB.get('stockMovements');
+  movements.push({
+    id: DB.nextId('stockMovements'), productId: p.id, productName: p.name,
+    qty: delta, type: 'adjustment', requestedBy: session.name, receivedBy: session.name,
+    timestamp: new Date().toISOString(), ref: 'ADJ'+Date.now(),
+  });
+  DB.set('stockMovements', movements);
+  renderWarehouse();
+}
+
+function requestStock() {
+  const pid = parseInt(document.getElementById('reqProduct').value);
+  const qty = parseInt(document.getElementById('reqQty').value);
+  const receiver = document.getElementById('reqReceiver').value;
+  if (!qty || qty <= 0) { alert('Invalid quantity'); return; }
+  const products = DB.get('products');
+  const p = products.find(x => x.id === pid);
+  if (p.stock < qty) { alert('Not enough stock!'); return; }
+  p.stock -= qty;
+  DB.set('products', products);
+  const movements = DB.get('stockMovements');
+  movements.push({
+    id: DB.nextId('stockMovements'), productId: p.id, productName: p.name,
+    qty: -qty, type: 'warehouse_request', requestedBy: session.name, receivedBy: receiver,
+    timestamp: new Date().toISOString(), ref: 'REQ'+Date.now(),
+  });
+  DB.set('stockMovements', movements);
+  alert('Stock request recorded!');
+  renderWarehouse();
+}
+
+/* ============================================================
+   MODULE 3: MANAGER DASHBOARD
+   ============================================================ */
+function renderDashboard() {
+  if (session.role !== 'manager') {
+    document.getElementById('mainContent').innerHTML = '<p class="empty">Access denied.</p>';
+    return;
+  }
+
+  const orders = DB.get('orders');
+  const today = new Date().toDateString();
+  const thisWeek = getWeekStart();
+  const thisMonth = new Date().getMonth();
+
+  const todayOrders = orders.filter(o => new Date(o.date).toDateString() === today);
+  const weekOrders = orders.filter(o => new Date(o.date) >= thisWeek);
+  const monthOrders = orders.filter(o => new Date(o.date).getMonth() === thisMonth);
+  const sum = arr => arr.reduce((s, o) => s + o.total, 0);
+
+  document.getElementById('mainContent').innerHTML = `
+    <h1 class="page-title">📊 Sales Dashboard <span class="badge badge-purple">Manager Only</span></h1>
+    <div class="stats-grid">
+      <div class="stat-card"><div class="label">Today's Sales</div><div class="value">$${sum(todayOrders).toFixed(2)}</div></div>
+      <div class="stat-card" style="border-color:#27ae60"><div class="label">This Week</div><div class="value">$${sum(weekOrders).toFixed(2)}</div></div>
+      <div class="stat-card" style="border-color:#f39c12"><div class="label">This Month</div><div class="value">$${sum(monthOrders).toFixed(2)}</div></div>
+      <div class="stat-card" style="border-color:#e74c3c"><div class="label">Total Orders</div><div class="value">${orders.length}</div></div>
+    </div>
+    <div class="card">
+      <h3>Sales Breakdown</h3>
+      <table>
+        <thead><tr><th>Period</th><th>Orders</th><th>Revenue</th><th>Avg Order</th></tr></thead>
+        <tbody>
+          <tr><td>Today</td><td>${todayOrders.length}</td><td>$${sum(todayOrders).toFixed(2)}</td><td>$${todayOrders.length?(sum(todayOrders)/todayOrders.length).toFixed(2):'0.00'}</td></tr>
+          <tr><td>This Week</td><td>${weekOrders.length}</td><td>$${sum(weekOrders).toFixed(2)}</td><td>$${weekOrders.length?(sum(weekOrders)/weekOrders.length).toFixed(2):'0.00'}</td></tr>
+          <tr><td>This Month</td><td>${monthOrders.length}</td><td>$${sum(monthOrders).toFixed(2)}</td><td>$${monthOrders.length?(sum(monthOrders)/monthOrders.length).toFixed(2):'0.00'}</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="card">
+      <h3>Recent Transactions</h3>
+      ${orders.length===0?'<p class="empty">No sales yet</p>':`
+      <table>
+        <thead><tr><th>Ref</th><th>Customer</th><th>Cashier</th><th>Amount</th><th>Payment</th><th>Time</th></tr></thead>
+        <tbody>${orders.slice(-15).reverse().map(o=>`
+          <tr><td>${o.ref}</td><td>${o.customerName}</td><td>${o.cashier}</td><td>$${o.total.toFixed(2)}</td><td>${o.paymentMethod}</td><td>${new Date(o.date).toLocaleString()}</td></tr>
+        `).join('')}</tbody>
+      </table>`}
+    </div>
+  `;
+}
+
+function getWeekStart() {
+  const d = new Date();
+  const day = d.getDay();
+  d.setDate(d.getDate() - day);
+  d.setHours(0,0,0,0);
+  return d;
+}
+
+/* ============================================================
+   MODULE 4: RIDERS
+   ============================================================ */
+function renderRiders() {
+  const orders = DB.get('orders').filter(o => o.status === 'paid' || o.status === 'delivering');
+  const deliveries = DB.get('deliveries');
+  const riders = DB.get('users').filter(u => u.role === 'rider');
+
+  document.getElementById('mainContent').innerHTML = `
+    <h1 class="page-title">🛵 Riders & Deliveries</h1>
+    <div class="card">
+      <h3>Assign Rider to Order</h3>
+      ${orders.length===0?'<p class="empty">No paid orders awaiting delivery</p>':
+        riders.length===0?'<p class="empty">No riders yet. Create a rider account in <b>User Management</b> first.</p>':`
+      <div class="form-row">
+        <select id="delOrder">${orders.map(o=>`<option value="${o.id}">#${o.id} — ${o.customerName} — $${o.total.toFixed(2)}</option>`).join('')}</select>
+        <select id="delRider">${riders.map(r=>`<option value="${r.username}">${r.name}</option>`).join('')}</select>
+        <button class="btn btn-primary" onclick="assignRider()">Assign Rider</button>
+      </div>`}
+    </div>
+    <div class="card">
+      <h3>Active Deliveries</h3>
+      ${deliveries.length===0?'<p class="empty">No deliveries assigned</p>':`
+      <table>
+        <thead><tr><th>Order</th><th>Rider</th><th>Status</th><th>Assigned</th><th>Delivered</th></tr></thead>
+        <tbody>${deliveries.map(d=>{
+          const order = DB.get('orders').find(o=>o.id===d.orderId) || {};
+          const rider = DB.get('users').find(r=>r.username===d.riderUsername) || {};
+          return `<tr>
+            <td>#${d.orderId} — ${order.customerName||''}</td>
+            <td>${rider.name||'?'}</td>
+            <td>${statusBadge(d.status)}</td>
+            <td>${new Date(d.assignedAt).toLocaleString()}</td>
+            <td>${d.deliveredAt?new Date(d.deliveredAt).toLocaleString():'-'}</td>
+          </tr>`;
+        }).join('')}</tbody>
+      </table>`}
+    </div>
+  `;
+}
+
+function statusBadge(s) {
+  const map = { assigned:'orange', picked_up:'blue', en_route:'blue', delivered:'green' };
+  return `<span class="badge badge-${map[s]||'blue'}">${s.replace('_',' ')}</span>`;
+}
+
+function assignRider() {
+  const orderId = parseInt(document.getElementById('delOrder').value);
+  const riderUsername = document.getElementById('delRider').value;
+  const deliveries = DB.get('deliveries');
+  if (deliveries.find(d => d.orderId === orderId && d.status !== 'delivered')) {
+    alert('This order already has an active delivery'); return;
+  }
+  deliveries.push({
+    id: DB.nextId('deliveries'), orderId, riderUsername,
+    status: 'assigned',
+    assignedAt: new Date().toISOString(),
+    pickedUpAt: null, deliveredAt: null,
+  });
+  DB.set('deliveries', deliveries);
+  alert('Rider assigned!');
+  renderRiders();
+}
+
+function renderRiderDeliveries() {
+  const deliveries = DB.get('deliveries').filter(d => d.riderUsername === session.username);
+
+  document.getElementById('mainContent').innerHTML = `
+    <h1 class="page-title">🛵 My Deliveries — ${session.name}</h1>
+    ${deliveries.length===0?'<p class="empty">No deliveries assigned yet</p>':`
+    <div class="card">
+      <table>
+        <thead><tr><th>Order</th><th>Customer</th><th>Amount</th><th>Status</th><th>Action</th></tr></thead>
+        <tbody>${deliveries.map(d=>{
+          const order = DB.get('orders').find(o=>o.id===d.orderId) || {};
+          return `<tr>
+            <td>#${d.orderId}</td>
+            <td>${order.customerName||'-'}<br><small>${order.customerPhone||''}</small></td>
+            <td>$${(order.total||0).toFixed(2)}</td>
+            <td>${statusBadge(d.status)}</td>
+            <td>
+              ${d.status==='assigned'?`<button class="btn btn-primary btn-sm" onclick="updateDelivery(${d.id},'picked_up')">Pick Up</button>`:''}
+              ${d.status==='picked_up'?`<button class="btn btn-warning btn-sm" onclick="updateDelivery(${d.id},'en_route')">En Route</button>`:''}
+              ${d.status==='en_route'?`<button class="btn btn-success btn-sm" onclick="updateDelivery(${d.id},'delivered')">Delivered</button>`:''}
+              ${d.status==='delivered'?'✅ Done':''}
+            </td>
+          </tr>`;
+        }).join('')}</tbody>
+      </table>
+    </div>`}
+  `;
+}
+
+function updateDelivery(id, status) {
+  const deliveries = DB.get('deliveries');
+  const d = deliveries.find(x => x.id === id);
+  if (!d) return;
+  d.status = status;
+  if (status === 'picked_up') d.pickedUpAt = new Date().toISOString();
+  if (status === 'delivered') {
+    d.deliveredAt = new Date().toISOString();
+    const orders = DB.get('orders');
+    const order = orders.find(o => o.id === d.orderId);
+    if (order) order.status = 'delivered';
+    DB.set('orders', orders);
+    alert(`✅ Restaurant notified: Order #${d.orderId} was delivered successfully!`);
+  }
+  DB.set('deliveries', deliveries);
+  renderRiderDeliveries();
+}
+
+/* ============================================================
+   MODULE 5: CUSTOMERS
+   ============================================================ */
+function renderCustomers() {
+  const customers = DB.get('customers');
+  document.getElementById('mainContent').innerHTML = `
+    <h1 class="page-title">👥 Customer Dashboard</h1>
+    <div class="stats-grid">
+      <div class="stat-card"><div class="label">Total Customers</div><div class="value">${customers.length}</div></div>
+      <div class="stat-card" style="border-color:#27ae60"><div class="label">Total Revenue</div><div class="value">$${customers.reduce((s,c)=>s+c.totalSpent,0).toFixed(2)}</div></div>
+      <div class="stat-card" style="border-color:#f39c12"><div class="label">Avg Spend</div><div class="value">$${customers.length?(customers.reduce((s,c)=>s+c.totalSpent,0)/customers.length).toFixed(2):'0.00'}</div></div>
+    </div>
+    <div class="card">
+      <h3>Customer List</h3>
+      ${customers.length===0?'<p class="empty">No customers yet — they appear automatically after each sale</p>':`
+      <table>
+        <thead><tr><th>Name</th><th>Phone</th><th>Total Spent</th><th>Visits</th><th>Last Visit</th></tr></thead>
+        <tbody>${customers.slice().reverse().map(c=>`
+          <tr><td>${c.name}</td><td>${c.phone}</td><td>$${c.totalSpent.toFixed(2)}</td><td>${c.visits}</td><td>${new Date(c.lastVisit).toLocaleString()}</td></tr>
+        `).join('')}</tbody>
+      </table>`}
+    </div>
+  `;
+}
+
+/* ============================================================
+   MODULE 6: USER MANAGEMENT (MANAGER ONLY)
+   ============================================================ */
+function renderUsers() {
+  if (session.role !== 'manager') {
+    document.getElementById('mainContent').innerHTML = '<p class="empty">Access denied.</p>';
+    return;
+  }
+
+  const users = DB.get('users');
+  document.getElementById('mainContent').innerHTML = `
+    <h1 class="page-title">🔐 User Management <span class="badge badge-purple">Manager Only</span></h1>
+
+    <div class="card">
+      <h3>➕ Create New User Account</h3>
+      <div class="form-row">
+        <input id="nuUsername" placeholder="Username (login name)">
+        <input id="nuName" placeholder="Full name">
+      </div>
+      <div class="form-row">
+        <input id="nuPassword" type="password" placeholder="Password (optional — leave blank for no password)">
+        <input id="nuPhone" placeholder="Phone (optional)">
+      </div>
+      <div class="form-row">
+        <select id="nuRole">
+          <option value="worker">👷 Worker</option>
+          <option value="rider">🛵 Rider</option>
+          <option value="manager">👔 Manager</option>
+        </select>
+        <button class="btn btn-success" style="flex:1" onclick="createUser()">Create Account</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>👥 All Users (${users.length})</h3>
+      <table>
+        <thead><tr><th>Username</th><th>Full Name</th><th>Role</th><th>Password</th><th>Phone</th><th>Actions</th></tr></thead>
+        <tbody>${users.map(u=>`
+          <tr>
+            <td><b>${u.username}</b></td>
+            <td>${u.name}</td>
+            <td>${roleBadge(u.role)}</td>
+            <td>${u.password ? '••••' : '<span class="badge badge-orange">empty</span>'}</td>
+            <td>${u.phone || '-'}</td>
+            <td>
+              <button class="btn btn-warning btn-sm" onclick="resetPassword('${u.username}')">Reset Password</button>
+              ${u.username !== 'manager' ? `<button class="btn btn-danger btn-sm" onclick="deleteUser('${u.username}')">Delete</button>` : '<span class="badge badge-blue">Protected</span>'}
+            </td>
+          </tr>`).join('')}</tbody>
+      </table>
+    </div>
+  `;
+}
+
+function roleBadge(role) {
+  const map = { manager: 'purple', worker: 'blue', rider: 'orange' };
+  return `<span class="badge badge-${map[role]||'blue'}">${role}</span>`;
+}
+
+function createUser() {
+  const username = document.getElementById('nuUsername').value.trim().toLowerCase();
+  const name = document.getElementById('nuName').value.trim();
+  const password = document.getElementById('nuPassword').value; // may be empty
+  const phone = document.getElementById('nuPhone').value.trim();
+  const role = document.getElementById('nuRole').value;
+
+  if (!username || !name) { alert('Please fill username and full name.'); return; }
+
+  const users = DB.get('users');
+  if (users.find(u => u.username === username)) {
+    alert('That username already exists. Please choose another.'); return;
+  }
+
+  users.push({ username, name, password, role, phone });
+  DB.set('users', users);
+  alert(`✅ Account created!\n\nUsername: ${username}\nRole: ${role}\nPassword: ${password ? 'set' : 'EMPTY (can log in with blank password)'}`);
+  renderUsers();
+}
+
+function resetPassword(username) {
+  const newPass = prompt(`Enter new password for "${username}" (leave blank for no password):`);
+  if (newPass === null) return; // user cancelled
+  const users = DB.get('users');
+  const u = users.find(x => x.username === username);
+  if (!u) return;
+  u.password = newPass; // empty string allowed
+  DB.set('users', users);
+  alert(`✅ Password updated for ${username}${newPass ? '' : ' (now empty — blank login allowed)'}.`);
+  renderUsers();
+}
+
+function deleteUser(username) {
+  if (username === 'manager') { alert('The default manager account cannot be deleted.'); return; }
+  if (!confirm(`Delete user "${username}"? This cannot be undone.`)) return;
+  const users = DB.get('users').filter(u => u.username !== username);
+  DB.set('users', users);
+  alert('User deleted.');
+  renderUsers();
+}
+
+/* ============================================================
+   MODAL HELPERS
+   ============================================================ */
+function showModal(html) {
+  document.getElementById('modalContainer').innerHTML = `<div class="modal"><div class="modal-box">${html}</div></div>`;
+}
+function closeModal() {
+  document.getElementById('modalContainer').innerHTML = '';
+}
+</script>
+</body>
+</html><!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SmartPOS — Restaurant & Warehouse System</title>
+<style>
+/* ============ GLOBAL ============ */
+* { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', Tahoma, sans-serif; }
+body { background: #f4f6f9; color: #2c3e50; }
+.hidden { display: none !important; }
+
+/* ============ LOGIN ============ */
+#loginScreen {
+  display: flex; align-items: center; justify-content: center;
+  height: 100vh; background: linear-gradient(135deg, #667eea, #764ba2);
+}
+.login-box {
+  background: #fff; padding: 40px; border-radius: 16px;
+  width: 380px; box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+}
+.login-box h1 { text-align: center; margin-bottom: 8px; color: #4a3f8f; }
+.login-box p { text-align: center; color: #888; margin-bottom: 24px; font-size: 13px; }
+.login-box input {
+  width: 100%; padding: 12px; margin-bottom: 14px;
+  border: 1px solid #ddd; border-radius: 8px; font-size: 14px;
+}
+.btn {
+  padding: 12px 20px; border: none; border-radius: 8px;
+  cursor: pointer; font-size: 14px; font-weight: 600;
+  transition: 0.2s;
+}
+.btn-primary { background: #667eea; color: #fff; width: 100%; }
+.btn-primary:hover { background: #5568d3; }
+.btn-success { background: #27ae60; color: #fff; }
+.btn-danger { background: #e74c3c; color: #fff; }
+.btn-warning { background: #f39c12; color: #fff; }
+.btn-sm { padding: 6px 12px; font-size: 12px; }
+
+/* ============ LAYOUT ============ */
+#app { display: flex; height: 100vh; }
+.sidebar {
+  width: 240px; background: #2c3e50; color: #fff;
+  display: flex; flex-direction: column; padding: 20px 0;
+}
+.sidebar h2 { padding: 0 20px 20px; font-size: 20px; border-bottom: 1px solid #34495e; }
+.sidebar .user-info {
+  padding: 15px 20px; font-size: 13px; color: #bdc3c7;
+  border-bottom: 1px solid #34495e;
+}
+.sidebar nav a {
+  display: block; padding: 14px 20px; color: #ecf0f1;
+  text-decoration: none; cursor: pointer; font-size: 14px;
+  border-left: 3px solid transparent;
+}
+.sidebar nav a:hover, .sidebar nav a.active {
+  background: #34495e; border-left-color: #667eea;
+}
+.sidebar .logout { margin-top: auto; padding: 20px; }
+.main { flex: 1; overflow-y: auto; padding: 24px; }
+.page-title { font-size: 24px; margin-bottom: 20px; color: #2c3e50; }
+
+/* ============ CARDS ============ */
+.card {
+  background: #fff; border-radius: 12px; padding: 20px;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.05); margin-bottom: 20px;
+}
+.card h3 { margin-bottom: 14px; font-size: 16px; color: #34495e; }
+.stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; margin-bottom: 20px; }
+.stat-card {
+  background: #fff; padding: 20px; border-radius: 12px;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.05); border-left: 4px solid #667eea;
+}
+.stat-card .label { font-size: 12px; color: #7f8c8d; text-transform: uppercase; }
+.stat-card .value { font-size: 24px; font-weight: 700; color: #2c3e50; margin-top: 6px; }
+
+/* ============ POS ============ */
+.pos-layout { display: grid; grid-template-columns: 1fr 380px; gap: 20px; }
+.menu-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
+.menu-item {
+  background: #fff; padding: 16px; border-radius: 10px;
+  cursor: pointer; text-align: center; box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+  transition: 0.2s; border: 2px solid transparent;
+}
+.menu-item:hover { transform: translateY(-2px); border-color: #667eea; }
+.menu-item .name { font-weight: 600; font-size: 14px; }
+.menu-item .price { color: #27ae60; font-weight: 700; margin-top: 6px; }
+.cart { background: #fff; border-radius: 12px; padding: 20px; height: fit-content; position: sticky; top: 0; }
+.cart-item { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #eee; font-size: 14px; }
+.cart-item .qty { color: #667eea; font-weight: 600; }
+.cart-total { font-size: 20px; font-weight: 700; margin: 16px 0; text-align: right; color: #2c3e50; }
+
+/* ============ TABLES ============ */
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th, td { padding: 12px; text-align: left; border-bottom: 1px solid #eee; }
+th { background: #f8f9fa; font-weight: 600; color: #34495e; }
+tr:hover { background: #f8f9fa; }
+
+/* ============ MODAL ============ */
+.modal {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.6);
+  display: flex; align-items: center; justify-content: center; z-index: 1000;
+}
+.modal-box {
+  background: #fff; border-radius: 16px; padding: 30px;
+  width: 460px; max-width: 90%; max-height: 90vh; overflow-y: auto;
+}
+.modal-box h2 { margin-bottom: 16px; }
+.modal-box input, .modal-box select {
+  width: 100%; padding: 10px; margin-bottom: 12px;
+  border: 1px solid #ddd; border-radius: 8px;
+}
+.payment-options { display: grid; gap: 10px; margin: 16px 0; }
+.pay-opt {
+  padding: 14px; border: 2px solid #ddd; border-radius: 10px;
+  cursor: pointer; text-align: center; font-weight: 600;
+}
+.pay-opt:hover { border-color: #667eea; }
+.pay-opt.selected { border-color: #667eea; background: #eef1fd; }
+
+/* ============ RECEIPT ============ */
+.receipt {
+  font-family: 'Courier New', monospace; font-size: 13px;
+  padding: 20px; background: #fff; border: 1px dashed #999;
+}
+.receipt hr { border: none; border-top: 1px dashed #999; margin: 10px 0; }
+.receipt .line { display: flex; justify-content: space-between; }
+
+.badge { padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: 600; }
+.badge-green { background: #d4edda; color: #155724; }
+.badge-orange { background: #ffe4b5; color: #8a5300; }
+.badge-red { background: #f8d7da; color: #721c24; }
+.badge-blue { background: #d1ecf1; color: #0c5460; }
+.badge-purple { background: #e2d9f3; color: #4a1e8c; }
+
+.form-row { display: flex; gap: 10px; margin-bottom: 12px; }
+.form-row input, .form-row select { flex: 1; padding: 10px; border: 1px solid #ddd; border-radius: 8px; }
+.empty { text-align: center; color: #aaa; padding: 30px; }
+</style>
+</head>
+<body>
+
+<!-- ==================== LOGIN ==================== -->
+<div id="loginScreen">
+  <div class="login-box">
+    <h1>🍔 SmartPOS</h1>
+    <p>Restaurant & Warehouse Management System</p>
+    <input id="loginUser" placeholder="Username" value="manager">
+    <input id="loginPass" type="password" placeholder="Password (optional)">
+    <button class="btn btn-primary" onclick="login()">Login</button>
+    <p style="margin-top:16px;font-size:11px;color:#aaa;text-align:center">
+      Password is optional — leave blank to log in
+    </p>
+  </div>
+</div>
+
+<!-- ==================== APP ==================== -->
+<div id="app" class="hidden">
+  <aside class="sidebar">
+    <h2>🍔 SmartPOS</h2>
+    <div class="user-info">
+      <div id="currentUser"></div>
+      <div id="currentRole" style="color:#667eea;font-weight:600"></div>
+    </div>
+    <nav id="navMenu"></nav>
+    <div class="logout">
+      <button class="btn btn-danger btn-sm" style="width:100%" onclick="logout()">Logout</button>
+    </div>
+  </aside>
+  <main class="main" id="mainContent"></main>
+</div>
+
+<!-- ==================== MODALS ==================== -->
+<div id="modalContainer"></div>
+
+<script>
+/* ============================================================
+   DATABASE (localStorage)
+   ============================================================ */
+const DB = {
+  init() {
+    if (!localStorage.getItem('pos_initialized')) {
+      this.set('products', [
+        { id: 1, name: 'Chicken Burger', price: 25.00, stock: 50 },
+        { id: 2, name: 'Beef Pizza', price: 45.00, stock: 30 },
+        { id: 3, name: 'French Fries', price: 12.00, stock: 100 },
+        { id: 4, name: 'Coca Cola', price: 8.00, stock: 200 },
+        { id: 5, name: 'Grilled Chicken', price: 38.00, stock: 25 },
+        { id: 6, name: 'Rice & Beans', price: 18.00, stock: 60 },
+        { id: 7, name: 'Milkshake', price: 15.00, stock: 40 },
+        { id: 8, name: 'Chicken Wings', price: 30.00, stock: 35 },
+      ]);
+      this.set('orders', []);
+      this.set('stockMovements', []);
+      this.set('customers', []);
+      this.set('deliveries', []);
+      this.set('riders', []);
+      this.set('users', [
+        { username: 'manager', name: 'Manager', password: '1234', role: 'manager', phone: '' },
+      ]);
+      localStorage.setItem('pos_initialized', '1');
+    }
+  },
+  get(k) { return JSON.parse(localStorage.getItem('pos_' + k) || '[]'); },
+  set(k, v) { localStorage.setItem('pos_' + k, JSON.stringify(v)); },
+  nextId(k) {
+    const arr = this.get(k);
+    return arr.length ? Math.max(...arr.map(x => x.id || 0)) + 1 : 1;
+  }
+};
+DB.init();
+
+/* ============================================================
+   SESSION
+   ============================================================ */
+let session = null;
+let cart = [];
+
+/* ============================================================
+   LOGIN — empty password is allowed
+   ============================================================ */
+function login() {
+  const username = document.getElementById('loginUser').value.trim().toLowerCase();
+  const password = document.getElementById('loginPass').value;
+
+  const users = DB.get('users');
+  const user = users.find(u =>
+    u.username === username && (password === '' || u.password === password)
+  );
+
+  if (!user) { alert('Invalid username or password!'); return; }
+
+  session = user;
+  document.getElementById('loginScreen').classList.add('hidden');
+  document.getElementById('app').classList.remove('hidden');
+  document.getElementById('currentUser').textContent = '👤 ' + session.name;
+  document.getElementById('currentRole').textContent = session.role.toUpperCase();
+  buildNav();
+  navigate(user.role === 'rider' ? 'riderDeliveries' : user.role === 'manager' ? 'dashboard' : 'pos');
+}
+
+function logout() {
+  session = null; cart = [];
+  document.getElementById('app').classList.add('hidden');
+  document.getElementById('loginScreen').classList.remove('hidden');
+  document.getElementById('loginUser').value = '';
+  document.getElementById('loginPass').value = '';
+}
+
+/* ============================================================
+   NAVIGATION (role-based)
+   ============================================================ */
+function buildNav() {
+  const nav = document.getElementById('navMenu');
+  let links = '';
+  if (session.role === 'manager') {
+    links = `
+      <a onclick="navigate('dashboard')">📊 Sales Dashboard</a>
+      <a onclick="navigate('pos')">💳 POS Checkout</a>
+      <a onclick="navigate('warehouse')">📦 Warehouse</a>
+      <a onclick="navigate('riders')">🛵 Riders & Deliveries</a>
+      <a onclick="navigate('customers')">👥 Customers</a>
+      <a onclick="navigate('users')">🔐 User Management</a>`;
+  } else if (session.role === 'worker') {
+    links = `
+      <a onclick="navigate('pos')">💳 POS Checkout</a>
+      <a onclick="navigate('warehouse')">📦 Stock Requests</a>`;
+  } else if (session.role === 'rider') {
+    links = `
+      <a onclick="navigate('riderDeliveries')">🛵 My Deliveries</a>`;
+  }
+  nav.innerHTML = links;
+}
+
+function navigate(page) {
+  if (page === 'dashboard' && session.role !== 'manager') {
+    alert('Access denied. Only managers can view sales data.');
+    return;
+  }
+  if (page === 'users' && session.role !== 'manager') {
+    alert('Access denied. Only managers can manage users.');
+    return;
+  }
+  document.querySelectorAll('#navMenu a').forEach(a => a.classList.remove('active'));
+  const pages = {
+    dashboard: renderDashboard,
+    pos: renderPOS,
+    warehouse: renderWarehouse,
+    riders: renderRiders,
+    customers: renderCustomers,
+    users: renderUsers,
+    riderDeliveries: renderRiderDeliveries,
+  };
+  if (pages[page]) pages[page]();
+}
+
+/* ============================================================
+   MODULE 1: POS CHECKOUT
+   ============================================================ */
+function renderPOS() {
+  const products = DB.get('products');
+  const mc = document.getElementById('mainContent');
+  mc.innerHTML = `
+    <h1 class="page-title">💳 POS Checkout</h1>
+    <div class="pos-layout">
+      <div>
+        <div class="card">
+          <h3>Menu</h3>
+          <div class="menu-grid" id="menuGrid"></div>
+        </div>
+      </div>
+      <div class="cart">
+        <h3>🛒 Cart</h3>
+        <div id="cartItems"><p class="empty">Cart is empty</p></div>
+        <div class="cart-total" id="cartTotal">Total: $0.00</div>
+        <button class="btn btn-success" style="width:100%" onclick="openPaymentModal()">Checkout & Pay</button>
+      </div>
+    </div>`;
+
+  const grid = document.getElementById('menuGrid');
+  grid.innerHTML = products.map(p => `
+    <div class="menu-item" onclick="addToCart(${p.id})">
+      <div class="name">${p.name}</div>
+      <div class="price">$${p.price.toFixed(2)}</div>
+      <div style="font-size:11px;color:#999;margin-top:4px">Stock: ${p.stock}</div>
+    </div>`).join('');
+
+  renderCart();
+}
+
+function addToCart(id) {
+  const products = DB.get('products');
+  const p = products.find(x => x.id === id);
+  if (p.stock <= 0) { alert('Out of stock!'); return; }
+  const item = cart.find(x => x.id === id);
+  if (item) item.qty++;
+  else cart.push({ id: p.id, name: p.name, price: p.price, qty: 1 });
+  renderCart();
+}
+
+function removeFromCart(id) {
+  cart = cart.filter(x => x.id !== id);
+  renderCart();
+}
+
+function renderCart() {
+  const el = document.getElementById('cartItems');
+  const totalEl = document.getElementById('cartTotal');
+  if (!el) return;
+  if (cart.length === 0) {
+    el.innerHTML = '<p class="empty">Cart is empty</p>';
+    totalEl.textContent = 'Total: $0.00';
+    return;
+  }
+  el.innerHTML = cart.map(i => `
+    <div class="cart-item">
+      <div><b>${i.name}</b><br><small>$${i.price.toFixed(2)}</small></div>
+      <div>
+        <span class="qty">x${i.qty}</span>
+        <button class="btn btn-danger btn-sm" onclick="removeFromCart(${i.id})">✕</button>
+      </div>
+    </div>`).join('');
+  const total = cart.reduce((s, i) => s + i.price * i.qty, 0);
+  totalEl.textContent = 'Total: $' + total.toFixed(2);
+}
+
+function openPaymentModal() {
+  if (cart.length === 0) { alert('Cart is empty!'); return; }
+  const total = cart.reduce((s, i) => s + i.price * i.qty, 0);
+  showModal(`
+    <h2>💳 Payment</h2>
+    <p>Total: <b style="font-size:20px;color:#27ae60">$${total.toFixed(2)}</b></p>
+    <input id="customerPhone" placeholder="Customer phone (for mobile money)" value="0555123456">
+    <input id="customerName" placeholder="Customer name (for receipt & database)" value="Walk-in Customer">
+    <p style="margin:14px 0 8px;font-size:13px;font-weight:600">Select payment method:</p>
+    <div class="payment-options" id="payOptions">
+      <div class="pay-opt" data-method="MTN MoMo" onclick="selectPay(this)">📱 MTN Mobile Money</div>
+      <div class="pay-opt" data-method="M-Pesa" onclick="selectPay(this)">📱 M-Pesa (Safaricom)</div>
+      <div class="pay-opt" data-method="Airtel Money" onclick="selectPay(this)">📱 Airtel Money</div>
+      <div class="pay-opt" data-method="Cash" onclick="selectPay(this)">💵 Cash</div>
+    </div>
+    <button class="btn btn-success" style="width:100%" onclick="processPayment()">Pay Now</button>
+    <button class="btn" style="width:100%;margin-top:8px;background:#eee" onclick="closeModal()">Cancel</button>
+  `);
+}
+
+let selectedPay = null;
+function selectPay(el) {
+  document.querySelectorAll('.pay-opt').forEach(x => x.classList.remove('selected'));
+  el.classList.add('selected');
+  selectedPay = el.dataset.method;
+}
+
+function processPayment() {
+  if (!selectedPay) { alert('Select a payment method!'); return; }
+  const phone = document.getElementById('customerPhone').value;
+  const cname = document.getElementById('customerName').value;
+  const total = cart.reduce((s, i) => s + i.price * i.qty, 0);
+
+  closeModal();
+  showModal(`<h2>⏳ Processing...</h2>
+    <p style="padding:20px 0;text-align:center">Sending payment request to ${phone} via ${selectedPay}...</p>
+    <p style="text-align:center;color:#888;font-size:12px">Customer should enter PIN on their phone.</p>`);
+
+  setTimeout(() => finalizeOrder(total, phone, cname), 2500);
+}
+
+function finalizeOrder(total, phone, cname) {
+  const ref = 'TXN' + Date.now();
+
+  const products = DB.get('products');
+  cart.forEach(item => {
+    const p = products.find(x => x.id === item.id);
+    if (p) p.stock -= item.qty;
+  });
+  DB.set('products', products);
+
+  const movements = DB.get('stockMovements');
+  cart.forEach(item => {
+    movements.push({
+      id: DB.nextId('stockMovements'),
+      productId: item.id,
+      productName: item.name,
+      qty: -item.qty,
+      type: 'sale',
+      requestedBy: session.name,
+      receivedBy: cname,
+      timestamp: new Date().toISOString(),
+      ref: ref,
+    });
+  });
+  DB.set('stockMovements', movements);
+
+  const order = {
+    id: DB.nextId('orders'),
+    ref, items: [...cart], total,
+    paymentMethod: selectedPay,
+    customerPhone: phone,
+    customerName: cname,
+    cashier: session.name,
+    date: new Date().toISOString(),
+    status: 'paid',
+  };
+  const orders = DB.get('orders');
+  orders.push(order);
+  DB.set('orders', orders);
+
+  const customers = DB.get('customers');
+  let cust = customers.find(c => c.phone === phone);
+  if (cust) { cust.totalSpent += total; cust.visits++; cust.lastVisit = order.date; }
+  else { customers.push({ id: DB.nextId('customers'), name: cname, phone, totalSpent: total, visits: 1, lastVisit: order.date }); }
+  DB.set('customers', customers);
+
+  cart = [];
+  showReceipt(order);
+}
+
+function showReceipt(order) {
+  const lines = order.items.map(i =>
+    `<div class="line"><span>${i.name} x${i.qty}</span><span>$${(i.price*i.qty).toFixed(2)}</span></div>`
+  ).join('');
+  showModal(`
+    <div class="receipt">
+      <div style="text-align:center">
+        <h2>🍔 SMARTPOS RESTAURANT</h2>
+        <p>123 Main Street</p>
+        <p>Tel: 0555-123456</p>
+      </div>
+      <hr>
+      <div class="line"><span>Receipt:</span><span>${order.ref}</span></div>
+      <div class="line"><span>Date:</span><span>${new Date(order.date).toLocaleString()}</span></div>
+      <div class="line"><span>Cashier:</span><span>${order.cashier}</span></div>
+      <div class="line"><span>Customer:</span><span>${order.customerName}</span></div>
+      <hr>
+      ${lines}
+      <hr>
+      <div class="line"><b>TOTAL</b><b>$${order.total.toFixed(2)}</b></div>
+      <div class="line"><span>Paid via:</span><span>${order.paymentMethod}</span></div>
+      <hr>
+      <p style="text-align:center;margin-top:10px">Thank you for your business! 🙏</p>
+    </div>
+    <button class="btn btn-primary" style="margin-top:14px" onclick="closeModal();navigate('pos')">New Sale</button>
+  `);
+  renderPOS();
+}
+
+/* ============================================================
+   MODULE 2: WAREHOUSE
+   ============================================================ */
+function renderWarehouse() {
+  const products = DB.get('products');
+  const movements = DB.get('stockMovements').slice().reverse();
+  const mc = document.getElementById('mainContent');
+  mc.innerHTML = `
+    <h1 class="page-title">📦 Warehouse Management</h1>
+    <div class="stats-grid">
+      <div class="stat-card"><div class="label">Total Products</div><div class="value">${products.length}</div></div>
+      <div class="stat-card"><div class="label">Low Stock (&lt;10)</div><div class="value">${products.filter(p=>p.stock<10).length}</div></div>
+      <div class="stat-card"><div class="label">Stock Movements</div><div class="value">${movements.length}</div></div>
+    </div>
+    <div class="card">
+      <h3>Current Stock</h3>
+      <table>
+        <thead><tr><th>Product</th><th>Price</th><th>Stock</th><th>Status</th>${session.role==='manager'?'<th>Adjust</th>':''}</tr></thead>
+        <tbody>${products.map(p=>`
+          <tr>
+            <td>${p.name}</td>
+            <td>$${p.price.toFixed(2)}</td>
+            <td>${p.stock}</td>
+            <td>${p.stock<10?'<span class="badge badge-red">Low</span>':p.stock<30?'<span class="badge badge-orange">Medium</span>':'<span class="badge badge-green">OK</span>'}</td>
+            ${session.role==='manager'?`<td><button class="btn btn-warning btn-sm" onclick="adjustStock(${p.id})">Adjust</button></td>`:''}
+          </tr>`).join('')}</tbody>
+      </table>
+    </div>
+    <div class="card">
+      <h3>Stock Movement Audit Trail</h3>
+      ${movements.length===0?'<p class="empty">No movements yet</p>':`
+      <table>
+        <thead><tr><th>Time</th><th>Product</th><th>Qty</th><th>Type</th><th>Requested By</th><th>Received By</th><th>Ref</th></tr></thead>
+        <tbody>${movements.slice(0,50).map(m=>`
+          <tr>
+            <td>${new Date(m.timestamp).toLocaleString()}</td>
+            <td>${m.productName}</td>
+            <td>${m.qty>0?'+':''}${m.qty}</td>
+            <td>${m.type}</td>
+            <td>${m.requestedBy}</td>
+            <td>${m.receivedBy}</td>
+            <td>${m.ref||'-'}</td>
+          </tr>`).join('')}</tbody>
+      </table>`}
+    </div>
+    ${session.role==='worker'?`
+    <div class="card">
+      <h3>Request Stock from Warehouse</h3>
+      <div class="form-row">
+        <select id="reqProduct">${products.map(p=>`<option value="${p.id}">${p.name}</option>`).join('')}</select>
+        <input id="reqQty" type="number" placeholder="Quantity" value="1" min="1">
+        <input id="reqReceiver" placeholder="Receiver name" value="${session.name}">
+        <button class="btn btn-primary" onclick="requestStock()">Submit Request</button>
+      </div>
+    </div>`:''}
+  `;
+}
+
+function adjustStock(id) {
+  const products = DB.get('products');
+  const p = products.find(x => x.id === id);
+  const qty = prompt(`Adjust stock for ${p.name} (current: ${p.stock}). Enter +/- amount:`);
+  if (!qty) return;
+  const delta = parseInt(qty);
+  if (isNaN(delta)) return;
+  p.stock += delta;
+  DB.set('products', products);
+  const movements = DB.get('stockMovements');
+  movements.push({
+    id: DB.nextId('stockMovements'), productId: p.id, productName: p.name,
+    qty: delta, type: 'adjustment', requestedBy: session.name, receivedBy: session.name,
+    timestamp: new Date().toISOString(), ref: 'ADJ'+Date.now(),
+  });
+  DB.set('stockMovements', movements);
+  renderWarehouse();
+}
+
+function requestStock() {
+  const pid = parseInt(document.getElementById('reqProduct').value);
+  const qty = parseInt(document.getElementById('reqQty').value);
+  const receiver = document.getElementById('reqReceiver').value;
+  if (!qty || qty <= 0) { alert('Invalid quantity'); return; }
+  const products = DB.get('products');
+  const p = products.find(x => x.id === pid);
+  if (p.stock < qty) { alert('Not enough stock!'); return; }
+  p.stock -= qty;
+  DB.set('products', products);
+  const movements = DB.get('stockMovements');
+  movements.push({
+    id: DB.nextId('stockMovements'), productId: p.id, productName: p.name,
+    qty: -qty, type: 'warehouse_request', requestedBy: session.name, receivedBy: receiver,
+    timestamp: new Date().toISOString(), ref: 'REQ'+Date.now(),
+  });
+  DB.set('stockMovements', movements);
+  alert('Stock request recorded!');
+  renderWarehouse();
+}
+
+/* ============================================================
+   MODULE 3: MANAGER DASHBOARD
+   ============================================================ */
+function renderDashboard() {
+  if (session.role !== 'manager') {
+    document.getElementById('mainContent').innerHTML = '<p class="empty">Access denied.</p>';
+    return;
+  }
+
+  const orders = DB.get('orders');
+  const today = new Date().toDateString();
+  const thisWeek = getWeekStart();
+  const thisMonth = new Date().getMonth();
+
+  const todayOrders = orders.filter(o => new Date(o.date).toDateString() === today);
+  const weekOrders = orders.filter(o => new Date(o.date) >= thisWeek);
+  const monthOrders = orders.filter(o => new Date(o.date).getMonth() === thisMonth);
+  const sum = arr => arr.reduce((s, o) => s + o.total, 0);
+
+  document.getElementById('mainContent').innerHTML = `
+    <h1 class="page-title">📊 Sales Dashboard <span class="badge badge-purple">Manager Only</span></h1>
+    <div class="stats-grid">
+      <div class="stat-card"><div class="label">Today's Sales</div><div class="value">$${sum(todayOrders).toFixed(2)}</div></div>
+      <div class="stat-card" style="border-color:#27ae60"><div class="label">This Week</div><div class="value">$${sum(weekOrders).toFixed(2)}</div></div>
+      <div class="stat-card" style="border-color:#f39c12"><div class="label">This Month</div><div class="value">$${sum(monthOrders).toFixed(2)}</div></div>
+      <div class="stat-card" style="border-color:#e74c3c"><div class="label">Total Orders</div><div class="value">${orders.length}</div></div>
+    </div>
+    <div class="card">
+      <h3>Sales Breakdown</h3>
+      <table>
+        <thead><tr><th>Period</th><th>Orders</th><th>Revenue</th><th>Avg Order</th></tr></thead>
+        <tbody>
+          <tr><td>Today</td><td>${todayOrders.length}</td><td>$${sum(todayOrders).toFixed(2)}</td><td>$${todayOrders.length?(sum(todayOrders)/todayOrders.length).toFixed(2):'0.00'}</td></tr>
+          <tr><td>This Week</td><td>${weekOrders.length}</td><td>$${sum(weekOrders).toFixed(2)}</td><td>$${weekOrders.length?(sum(weekOrders)/weekOrders.length).toFixed(2):'0.00'}</td></tr>
+          <tr><td>This Month</td><td>${monthOrders.length}</td><td>$${sum(monthOrders).toFixed(2)}</td><td>$${monthOrders.length?(sum(monthOrders)/monthOrders.length).toFixed(2):'0.00'}</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="card">
+      <h3>Recent Transactions</h3>
+      ${orders.length===0?'<p class="empty">No sales yet</p>':`
+      <table>
+        <thead><tr><th>Ref</th><th>Customer</th><th>Cashier</th><th>Amount</th><th>Payment</th><th>Time</th></tr></thead>
+        <tbody>${orders.slice(-15).reverse().map(o=>`
+          <tr><td>${o.ref}</td><td>${o.customerName}</td><td>${o.cashier}</td><td>$${o.total.toFixed(2)}</td><td>${o.paymentMethod}</td><td>${new Date(o.date).toLocaleString()}</td></tr>
+        `).join('')}</tbody>
+      </table>`}
+    </div>
+  `;
+}
+
+function getWeekStart() {
+  const d = new Date();
+  const day = d.getDay();
+  d.setDate(d.getDate() - day);
+  d.setHours(0,0,0,0);
+  return d;
+}
+
+/* ============================================================
+   MODULE 4: RIDERS
+   ============================================================ */
+function renderRiders() {
+  const orders = DB.get('orders').filter(o => o.status === 'paid' || o.status === 'delivering');
+  const deliveries = DB.get('deliveries');
+  const riders = DB.get('users').filter(u => u.role === 'rider');
+
+  document.getElementById('mainContent').innerHTML = `
+    <h1 class="page-title">🛵 Riders & Deliveries</h1>
+    <div class="card">
+      <h3>Assign Rider to Order</h3>
+      ${orders.length===0?'<p class="empty">No paid orders awaiting delivery</p>':
+        riders.length===0?'<p class="empty">No riders yet. Create a rider account in <b>User Management</b> first.</p>':`
+      <div class="form-row">
+        <select id="delOrder">${orders.map(o=>`<option value="${o.id}">#${o.id} — ${o.customerName} — $${o.total.toFixed(2)}</option>`).join('')}</select>
+        <select id="delRider">${riders.map(r=>`<option value="${r.username}">${r.name}</option>`).join('')}</select>
+        <button class="btn btn-primary" onclick="assignRider()">Assign Rider</button>
+      </div>`}
+    </div>
+    <div class="card">
+      <h3>Active Deliveries</h3>
+      ${deliveries.length===0?'<p class="empty">No deliveries assigned</p>':`
+      <table>
+        <thead><tr><th>Order</th><th>Rider</th><th>Status</th><th>Assigned</th><th>Delivered</th></tr></thead>
+        <tbody>${deliveries.map(d=>{
+          const order = DB.get('orders').find(o=>o.id===d.orderId) || {};
+          const rider = DB.get('users').find(r=>r.username===d.riderUsername) || {};
+          return `<tr>
+            <td>#${d.orderId} — ${order.customerName||''}</td>
+            <td>${rider.name||'?'}</td>
+            <td>${statusBadge(d.status)}</td>
+            <td>${new Date(d.assignedAt).toLocaleString()}</td>
+            <td>${d.deliveredAt?new Date(d.deliveredAt).toLocaleString():'-'}</td>
+          </tr>`;
+        }).join('')}</tbody>
+      </table>`}
+    </div>
+  `;
+}
+
+function statusBadge(s) {
+  const map = { assigned:'orange', picked_up:'blue', en_route:'blue', delivered:'green' };
+  return `<span class="badge badge-${map[s]||'blue'}">${s.replace('_',' ')}</span>`;
+}
+
+function assignRider() {
+  const orderId = parseInt(document.getElementById('delOrder').value);
+  const riderUsername = document.getElementById('delRider').value;
+  const deliveries = DB.get('deliveries');
+  if (deliveries.find(d => d.orderId === orderId && d.status !== 'delivered')) {
+    alert('This order already has an active delivery'); return;
+  }
+  deliveries.push({
+    id: DB.nextId('deliveries'), orderId, riderUsername,
+    status: 'assigned',
+    assignedAt: new Date().toISOString(),
+    pickedUpAt: null, deliveredAt: null,
+  });
+  DB.set('deliveries', deliveries);
+  alert('Rider assigned!');
+  renderRiders();
+}
+
+function renderRiderDeliveries() {
+  const deliveries = DB.get('deliveries').filter(d => d.riderUsername === session.username);
+
+  document.getElementById('mainContent').innerHTML = `
+    <h1 class="page-title">🛵 My Deliveries — ${session.name}</h1>
+    ${deliveries.length===0?'<p class="empty">No deliveries assigned yet</p>':`
+    <div class="card">
+      <table>
+        <thead><tr><th>Order</th><th>Customer</th><th>Amount</th><th>Status</th><th>Action</th></tr></thead>
+        <tbody>${deliveries.map(d=>{
+          const order = DB.get('orders').find(o=>o.id===d.orderId) || {};
+          return `<tr>
+            <td>#${d.orderId}</td>
+            <td>${order.customerName||'-'}<br><small>${order.customerPhone||''}</small></td>
+            <td>$${(order.total||0).toFixed(2)}</td>
+            <td>${statusBadge(d.status)}</td>
+            <td>
+              ${d.status==='assigned'?`<button class="btn btn-primary btn-sm" onclick="updateDelivery(${d.id},'picked_up')">Pick Up</button>`:''}
+              ${d.status==='picked_up'?`<button class="btn btn-warning btn-sm" onclick="updateDelivery(${d.id},'en_route')">En Route</button>`:''}
+              ${d.status==='en_route'?`<button class="btn btn-success btn-sm" onclick="updateDelivery(${d.id},'delivered')">Delivered</button>`:''}
+              ${d.status==='delivered'?'✅ Done':''}
+            </td>
+          </tr>`;
+        }).join('')}</tbody>
+      </table>
+    </div>`}
+  `;
+}
+
+function updateDelivery(id, status) {
+  const deliveries = DB.get('deliveries');
+  const d = deliveries.find(x => x.id === id);
+  if (!d) return;
+  d.status = status;
+  if (status === 'picked_up') d.pickedUpAt = new Date().toISOString();
+  if (status === 'delivered') {
+    d.deliveredAt = new Date().toISOString();
+    const orders = DB.get('orders');
+    const order = orders.find(o => o.id === d.orderId);
+    if (order) order.status = 'delivered';
+    DB.set('orders', orders);
+    alert(`✅ Restaurant notified: Order #${d.orderId} was delivered successfully!`);
+  }
+  DB.set('deliveries', deliveries);
+  renderRiderDeliveries();
+}
+
+/* ============================================================
+   MODULE 5: CUSTOMERS
+   ============================================================ */
+function renderCustomers() {
+  const customers = DB.get('customers');
+  document.getElementById('mainContent').innerHTML = `
+    <h1 class="page-title">👥 Customer Dashboard</h1>
+    <div class="stats-grid">
+      <div class="stat-card"><div class="label">Total Customers</div><div class="value">${customers.length}</div></div>
+      <div class="stat-card" style="border-color:#27ae60"><div class="label">Total Revenue</div><div class="value">$${customers.reduce((s,c)=>s+c.totalSpent,0).toFixed(2)}</div></div>
+      <div class="stat-card" style="border-color:#f39c12"><div class="label">Avg Spend</div><div class="value">$${customers.length?(customers.reduce((s,c)=>s+c.totalSpent,0)/customers.length).toFixed(2):'0.00'}</div></div>
+    </div>
+    <div class="card">
+      <h3>Customer List</h3>
+      ${customers.length===0?'<p class="empty">No customers yet — they appear automatically after each sale</p>':`
+      <table>
+        <thead><tr><th>Name</th><th>Phone</th><th>Total Spent</th><th>Visits</th><th>Last Visit</th></tr></thead>
+        <tbody>${customers.slice().reverse().map(c=>`
+          <tr><td>${c.name}</td><td>${c.phone}</td><td>$${c.totalSpent.toFixed(2)}</td><td>${c.visits}</td><td>${new Date(c.lastVisit).toLocaleString()}</td></tr>
+        `).join('')}</tbody>
+      </table>`}
+    </div>
+  `;
+}
+
+/* ============================================================
+   MODULE 6: USER MANAGEMENT (MANAGER ONLY)
+   ============================================================ */
+function renderUsers() {
+  if (session.role !== 'manager') {
+    document.getElementById('mainContent').innerHTML = '<p class="empty">Access denied.</p>';
+    return;
+  }
+
+  const users = DB.get('users');
+  document.getElementById('mainContent').innerHTML = `
+    <h1 class="page-title">🔐 User Management <span class="badge badge-purple">Manager Only</span></h1>
+
+    <div class="card">
+      <h3>➕ Create New User Account</h3>
+      <div class="form-row">
+        <input id="nuUsername" placeholder="Username (login name)">
+        <input id="nuName" placeholder="Full name">
+      </div>
+      <div class="form-row">
+        <input id="nuPassword" type="password" placeholder="Password (optional — leave blank for no password)">
+        <input id="nuPhone" placeholder="Phone (optional)">
+      </div>
+      <div class="form-row">
+        <select id="nuRole">
+          <option value="worker">👷 Worker</option>
+          <option value="rider">🛵 Rider</option>
+          <option value="manager">👔 Manager</option>
+        </select>
+        <button class="btn btn-success" style="flex:1" onclick="createUser()">Create Account</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>👥 All Users (${users.length})</h3>
+      <table>
+        <thead><tr><th>Username</th><th>Full Name</th><th>Role</th><th>Password</th><th>Phone</th><th>Actions</th></tr></thead>
+        <tbody>${users.map(u=>`
+          <tr>
+            <td><b>${u.username}</b></td>
+            <td>${u.name}</td>
+            <td>${roleBadge(u.role)}</td>
+            <td>${u.password ? '••••' : '<span class="badge badge-orange">empty</span>'}</td>
+            <td>${u.phone || '-'}</td>
+            <td>
+              <button class="btn btn-warning btn-sm" onclick="resetPassword('${u.username}')">Reset Password</button>
+              ${u.username !== 'manager' ? `<button class="btn btn-danger btn-sm" onclick="deleteUser('${u.username}')">Delete</button>` : '<span class="badge badge-blue">Protected</span>'}
+            </td>
+          </tr>`).join('')}</tbody>
+      </table>
+    </div>
+  `;
+}
+
+function roleBadge(role) {
+  const map = { manager: 'purple', worker: 'blue', rider: 'orange' };
+  return `<span class="badge badge-${map[role]||'blue'}">${role}</span>`;
+}
+
+function createUser() {
+  const username = document.getElementById('nuUsername').value.trim().toLowerCase();
+  const name = document.getElementById('nuName').value.trim();
+  const password = document.getElementById('nuPassword').value; // may be empty
+  const phone = document.getElementById('nuPhone').value.trim();
+  const role = document.getElementById('nuRole').value;
+
+  if (!username || !name) { alert('Please fill username and full name.'); return; }
+
+  const users = DB.get('users');
+  if (users.find(u => u.username === username)) {
+    alert('That username already exists. Please choose another.'); return;
+  }
+
+  users.push({ username, name, password, role, phone });
+  DB.set('users', users);
+  alert(`✅ Account created!\n\nUsername: ${username}\nRole: ${role}\nPassword: ${password ? 'set' : 'EMPTY (can log in with blank password)'}`);
+  renderUsers();
+}
+
+function resetPassword(username) {
+  const newPass = prompt(`Enter new password for "${username}" (leave blank for no password):`);
+  if (newPass === null) return; // user cancelled
+  const users = DB.get('users');
+  const u = users.find(x => x.username === username);
+  if (!u) return;
+  u.password = newPass; // empty string allowed
+  DB.set('users', users);
+  alert(`✅ Password updated for ${username}${newPass ? '' : ' (now empty — blank login allowed)'}.`);
+  renderUsers();
+}
+
+function deleteUser(username) {
+  if (username === 'manager') { alert('The default manager account cannot be deleted.'); return; }
+  if (!confirm(`Delete user "${username}"? This cannot be undone.`)) return;
+  const users = DB.get('users').filter(u => u.username !== username);
+  DB.set('users', users);
+  alert('User deleted.');
+  renderUsers();
+}
+
+/* ============================================================
+   MODAL HELPERS
+   ============================================================ */
+function showModal(html) {
+  document.getElementById('modalContainer').innerHTML = `<div class="modal"><div class="modal-box">${html}</div></div>`;
+}
+function closeModal() {
+  document.getElementById('modalContainer').innerHTML = '';
+}
+</script>
+</body>
+</html><!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SmartPOS — Restaurant & Warehouse System</title>
+<style>
+/* ============ GLOBAL ============ */
+* { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', Tahoma, sans-serif; }
+body { background: #f4f6f9; color: #2c3e50; }
+.hidden { display: none !important; }
+
+/* ============ LOGIN ============ */
+#loginScreen {
+  display: flex; align-items: center; justify-content: center;
+  height: 100vh; background: linear-gradient(135deg, #667eea, #764ba2);
+}
+.login-box {
+  background: #fff; padding: 40px; border-radius: 16px;
+  width: 380px; box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+}
+.login-box h1 { text-align: center; margin-bottom: 8px; color: #4a3f8f; }
+.login-box p { text-align: center; color: #888; margin-bottom: 24px; font-size: 13px; }
+.login-box input {
+  width: 100%; padding: 12px; margin-bottom: 14px;
+  border: 1px solid #ddd; border-radius: 8px; font-size: 14px;
+}
+.btn {
+  padding: 12px 20px; border: none; border-radius: 8px;
+  cursor: pointer; font-size: 14px; font-weight: 600;
+  transition: 0.2s;
+}
+.btn-primary { background: #667eea; color: #fff; width: 100%; }
+.btn-primary:hover { background: #5568d3; }
+.btn-success { background: #27ae60; color: #fff; }
+.btn-danger { background: #e74c3c; color: #fff; }
+.btn-warning { background: #f39c12; color: #fff; }
+.btn-sm { padding: 6px 12px; font-size: 12px; }
+
+/* ============ LAYOUT ============ */
+#app { display: flex; height: 100vh; }
+.sidebar {
+  width: 240px; background: #2c3e50; color: #fff;
+  display: flex; flex-direction: column; padding: 20px 0;
+}
+.sidebar h2 { padding: 0 20px 20px; font-size: 20px; border-bottom: 1px solid #34495e; }
+.sidebar .user-info {
+  padding: 15px 20px; font-size: 13px; color: #bdc3c7;
+  border-bottom: 1px solid #34495e;
+}
+.sidebar nav a {
+  display: block; padding: 14px 20px; color: #ecf0f1;
+  text-decoration: none; cursor: pointer; font-size: 14px;
+  border-left: 3px solid transparent;
+}
+.sidebar nav a:hover, .sidebar nav a.active {
+  background: #34495e; border-left-color: #667eea;
+}
+.sidebar .logout { margin-top: auto; padding: 20px; }
+.main { flex: 1; overflow-y: auto; padding: 24px; }
+.page-title { font-size: 24px; margin-bottom: 20px; color: #2c3e50; }
+
+/* ============ CARDS ============ */
+.card {
+  background: #fff; border-radius: 12px; padding: 20px;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.05); margin-bottom: 20px;
+}
+.card h3 { margin-bottom: 14px; font-size: 16px; color: #34495e; }
+.stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; margin-bottom: 20px; }
+.stat-card {
+  background: #fff; padding: 20px; border-radius: 12px;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.05); border-left: 4px solid #667eea;
+}
+.stat-card .label { font-size: 12px; color: #7f8c8d; text-transform: uppercase; }
+.stat-card .value { font-size: 24px; font-weight: 700; color: #2c3e50; margin-top: 6px; }
+
+/* ============ POS ============ */
+.pos-layout { display: grid; grid-template-columns: 1fr 380px; gap: 20px; }
+.menu-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
+.menu-item {
+  background: #fff; padding: 16px; border-radius: 10px;
+  cursor: pointer; text-align: center; box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+  transition: 0.2s; border: 2px solid transparent;
+}
+.menu-item:hover { transform: translateY(-2px); border-color: #667eea; }
+.menu-item .name { font-weight: 600; font-size: 14px; }
+.menu-item .price { color: #27ae60; font-weight: 700; margin-top: 6px; }
+.cart { background: #fff; border-radius: 12px; padding: 20px; height: fit-content; position: sticky; top: 0; }
+.cart-item { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #eee; font-size: 14px; }
+.cart-item .qty { color: #667eea; font-weight: 600; }
+.cart-total { font-size: 20px; font-weight: 700; margin: 16px 0; text-align: right; color: #2c3e50; }
+
+/* ============ TABLES ============ */
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th, td { padding: 12px; text-align: left; border-bottom: 1px solid #eee; }
+th { background: #f8f9fa; font-weight: 600; color: #34495e; }
+tr:hover { background: #f8f9fa; }
+
+/* ============ MODAL ============ */
+.modal {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.6);
+  display: flex; align-items: center; justify-content: center; z-index: 1000;
+}
+.modal-box {
+  background: #fff; border-radius: 16px; padding: 30px;
+  width: 460px; max-width: 90%; max-height: 90vh; overflow-y: auto;
+}
+.modal-box h2 { margin-bottom: 16px; }
+.modal-box input, .modal-box select {
+  width: 100%; padding: 10px; margin-bottom: 12px;
+  border: 1px solid #ddd; border-radius: 8px;
+}
+.payment-options { display: grid; gap: 10px; margin: 16px 0; }
+.pay-opt {
+  padding: 14px; border: 2px solid #ddd; border-radius: 10px;
+  cursor: pointer; text-align: center; font-weight: 600;
+}
+.pay-opt:hover { border-color: #667eea; }
+.pay-opt.selected { border-color: #667eea; background: #eef1fd; }
+
+/* ============ RECEIPT ============ */
+.receipt {
+  font-family: 'Courier New', monospace; font-size: 13px;
+  padding: 20px; background: #fff; border: 1px dashed #999;
+}
+.receipt hr { border: none; border-top: 1px dashed #999; margin: 10px 0; }
+.receipt .line { display: flex; justify-content: space-between; }
+
+.badge { padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: 600; }
+.badge-green { background: #d4edda; color: #155724; }
+.badge-orange { background: #ffe4b5; color: #8a5300; }
+.badge-red { background: #f8d7da; color: #721c24; }
+.badge-blue { background: #d1ecf1; color: #0c5460; }
+.badge-purple { background: #e2d9f3; color: #4a1e8c; }
+
+.form-row { display: flex; gap: 10px; margin-bottom: 12px; }
+.form-row input, .form-row select { flex: 1; padding: 10px; border: 1px solid #ddd; border-radius: 8px; }
+.empty { text-align: center; color: #aaa; padding: 30px; }
+</style>
+</head>
+<body>
+
+<!-- ==================== LOGIN ==================== -->
+<div id="loginScreen">
+  <div class="login-box">
+    <h1>🍔 SmartPOS</h1>
+    <p>Restaurant & Warehouse Management System</p>
+    <input id="loginUser" placeholder="Username" value="manager">
+    <input id="loginPass" type="password" placeholder="Password (optional)">
+    <button class="btn btn-primary" onclick="login()">Login</button>
+    <p style="margin-top:16px;font-size:11px;color:#aaa;text-align:center">
+      Password is optional — leave blank to log in
+    </p>
+  </div>
+</div>
+
+<!-- ==================== APP ==================== -->
+<div id="app" class="hidden">
+  <aside class="sidebar">
+    <h2>🍔 SmartPOS</h2>
+    <div class="user-info">
+      <div id="currentUser"></div>
+      <div id="currentRole" style="color:#667eea;font-weight:600"></div>
+    </div>
+    <nav id="navMenu"></nav>
+    <div class="logout">
+      <button class="btn btn-danger btn-sm" style="width:100%" onclick="logout()">Logout</button>
+    </div>
+  </aside>
+  <main class="main" id="mainContent"></main>
+</div>
+
+<!-- ==================== MODALS ==================== -->
+<div id="modalContainer"></div>
+
+<script>
+/* ============================================================
+   DATABASE (localStorage)
+   ============================================================ */
+const DB = {
+  init() {
+    if (!localStorage.getItem('pos_initialized')) {
+      this.set('products', [
+        { id: 1, name: 'Chicken Burger', price: 25.00, stock: 50 },
+        { id: 2, name: 'Beef Pizza', price: 45.00, stock: 30 },
+        { id: 3, name: 'French Fries', price: 12.00, stock: 100 },
+        { id: 4, name: 'Coca Cola', price: 8.00, stock: 200 },
+        { id: 5, name: 'Grilled Chicken', price: 38.00, stock: 25 },
+        { id: 6, name: 'Rice & Beans', price: 18.00, stock: 60 },
+        { id: 7, name: 'Milkshake', price: 15.00, stock: 40 },
+        { id: 8, name: 'Chicken Wings', price: 30.00, stock: 35 },
+      ]);
+      this.set('orders', []);
+      this.set('stockMovements', []);
+      this.set('customers', []);
+      this.set('deliveries', []);
+      this.set('riders', []);
+      this.set('users', [
+        { username: 'manager', name: 'Manager', password: '1234', role: 'manager', phone: '' },
+      ]);
+      localStorage.setItem('pos_initialized', '1');
+    }
+  },
+  get(k) { return JSON.parse(localStorage.getItem('pos_' + k) || '[]'); },
+  set(k, v) { localStorage.setItem('pos_' + k, JSON.stringify(v)); },
+  nextId(k) {
+    const arr = this.get(k);
+    return arr.length ? Math.max(...arr.map(x => x.id || 0)) + 1 : 1;
+  }
+};
+DB.init();
+
+/* ============================================================
+   SESSION
+   ============================================================ */
+let session = null;
+let cart = [];
+
+/* ============================================================
+   LOGIN — empty password is allowed
+   ============================================================ */
+function login() {
+  const username = document.getElementById('loginUser').value.trim().toLowerCase();
+  const password = document.getElementById('loginPass').value;
+
+  const users = DB.get('users');
+  const user = users.find(u =>
+    u.username === username && (password === '' || u.password === password)
+  );
+
+  if (!user) { alert('Invalid username or password!'); return; }
+
+  session = user;
+  document.getElementById('loginScreen').classList.add('hidden');
+  document.getElementById('app').classList.remove('hidden');
+  document.getElementById('currentUser').textContent = '👤 ' + session.name;
+  document.getElementById('currentRole').textContent = session.role.toUpperCase();
+  buildNav();
+  navigate(user.role === 'rider' ? 'riderDeliveries' : user.role === 'manager' ? 'dashboard' : 'pos');
+}
+
+function logout() {
+  session = null; cart = [];
+  document.getElementById('app').classList.add('hidden');
+  document.getElementById('loginScreen').classList.remove('hidden');
+  document.getElementById('loginUser').value = '';
+  document.getElementById('loginPass').value = '';
+}
+
+/* ============================================================
+   NAVIGATION (role-based)
+   ============================================================ */
+function buildNav() {
+  const nav = document.getElementById('navMenu');
+  let links = '';
+  if (session.role === 'manager') {
+    links = `
+      <a onclick="navigate('dashboard')">📊 Sales Dashboard</a>
+      <a onclick="navigate('pos')">💳 POS Checkout</a>
+      <a onclick="navigate('warehouse')">📦 Warehouse</a>
+      <a onclick="navigate('riders')">🛵 Riders & Deliveries</a>
+      <a onclick="navigate('customers')">👥 Customers</a>
+      <a onclick="navigate('users')">🔐 User Management</a>`;
+  } else if (session.role === 'worker') {
+    links = `
+      <a onclick="navigate('pos')">💳 POS Checkout</a>
+      <a onclick="navigate('warehouse')">📦 Stock Requests</a>`;
+  } else if (session.role === 'rider') {
+    links = `
+      <a onclick="navigate('riderDeliveries')">🛵 My Deliveries</a>`;
+  }
+  nav.innerHTML = links;
+}
+
+function navigate(page) {
+  if (page === 'dashboard' && session.role !== 'manager') {
+    alert('Access denied. Only managers can view sales data.');
+    return;
+  }
+  if (page === 'users' && session.role !== 'manager') {
+    alert('Access denied. Only managers can manage users.');
+    return;
+  }
+  document.querySelectorAll('#navMenu a').forEach(a => a.classList.remove('active'));
+  const pages = {
+    dashboard: renderDashboard,
+    pos: renderPOS,
+    warehouse: renderWarehouse,
+    riders: renderRiders,
+    customers: renderCustomers,
+    users: renderUsers,
+    riderDeliveries: renderRiderDeliveries,
+  };
+  if (pages[page]) pages[page]();
+}
+
+/* ============================================================
+   MODULE 1: POS CHECKOUT
+   ============================================================ */
+function renderPOS() {
+  const products = DB.get('products');
+  const mc = document.getElementById('mainContent');
+  mc.innerHTML = `
+    <h1 class="page-title">💳 POS Checkout</h1>
+    <div class="pos-layout">
+      <div>
+        <div class="card">
+          <h3>Menu</h3>
+          <div class="menu-grid" id="menuGrid"></div>
+        </div>
+      </div>
+      <div class="cart">
+        <h3>🛒 Cart</h3>
+        <div id="cartItems"><p class="empty">Cart is empty</p></div>
+        <div class="cart-total" id="cartTotal">Total: $0.00</div>
+        <button class="btn btn-success" style="width:100%" onclick="openPaymentModal()">Checkout & Pay</button>
+      </div>
+    </div>`;
+
+  const grid = document.getElementById('menuGrid');
+  grid.innerHTML = products.map(p => `
+    <div class="menu-item" onclick="addToCart(${p.id})">
+      <div class="name">${p.name}</div>
+      <div class="price">$${p.price.toFixed(2)}</div>
+      <div style="font-size:11px;color:#999;margin-top:4px">Stock: ${p.stock}</div>
+    </div>`).join('');
+
+  renderCart();
+}
+
+function addToCart(id) {
+  const products = DB.get('products');
+  const p = products.find(x => x.id === id);
+  if (p.stock <= 0) { alert('Out of stock!'); return; }
+  const item = cart.find(x => x.id === id);
+  if (item) item.qty++;
+  else cart.push({ id: p.id, name: p.name, price: p.price, qty: 1 });
+  renderCart();
+}
+
+function removeFromCart(id) {
+  cart = cart.filter(x => x.id !== id);
+  renderCart();
+}
+
+function renderCart() {
+  const el = document.getElementById('cartItems');
+  const totalEl = document.getElementById('cartTotal');
+  if (!el) return;
+  if (cart.length === 0) {
+    el.innerHTML = '<p class="empty">Cart is empty</p>';
+    totalEl.textContent = 'Total: $0.00';
+    return;
+  }
+  el.innerHTML = cart.map(i => `
+    <div class="cart-item">
+      <div><b>${i.name}</b><br><small>$${i.price.toFixed(2)}</small></div>
+      <div>
+        <span class="qty">x${i.qty}</span>
+        <button class="btn btn-danger btn-sm" onclick="removeFromCart(${i.id})">✕</button>
+      </div>
+    </div>`).join('');
+  const total = cart.reduce((s, i) => s + i.price * i.qty, 0);
+  totalEl.textContent = 'Total: $' + total.toFixed(2);
+}
+
+function openPaymentModal() {
+  if (cart.length === 0) { alert('Cart is empty!'); return; }
+  const total = cart.reduce((s, i) => s + i.price * i.qty, 0);
+  showModal(`
+    <h2>💳 Payment</h2>
+    <p>Total: <b style="font-size:20px;color:#27ae60">$${total.toFixed(2)}</b></p>
+    <input id="customerPhone" placeholder="Customer phone (for mobile money)" value="0555123456">
+    <input id="customerName" placeholder="Customer name (for receipt & database)" value="Walk-in Customer">
+    <p style="margin:14px 0 8px;font-size:13px;font-weight:600">Select payment method:</p>
+    <div class="payment-options" id="payOptions">
+      <div class="pay-opt" data-method="MTN MoMo" onclick="selectPay(this)">📱 MTN Mobile Money</div>
+      <div class="pay-opt" data-method="M-Pesa" onclick="selectPay(this)">📱 M-Pesa (Safaricom)</div>
+      <div class="pay-opt" data-method="Airtel Money" onclick="selectPay(this)">📱 Airtel Money</div>
+      <div class="pay-opt" data-method="Cash" onclick="selectPay(this)">💵 Cash</div>
+    </div>
+    <button class="btn btn-success" style="width:100%" onclick="processPayment()">Pay Now</button>
+    <button class="btn" style="width:100%;margin-top:8px;background:#eee" onclick="closeModal()">Cancel</button>
+  `);
+}
+
+let selectedPay = null;
+function selectPay(el) {
+  document.querySelectorAll('.pay-opt').forEach(x => x.classList.remove('selected'));
+  el.classList.add('selected');
+  selectedPay = el.dataset.method;
+}
+
+function processPayment() {
+  if (!selectedPay) { alert('Select a payment method!'); return; }
+  const phone = document.getElementById('customerPhone').value;
+  const cname = document.getElementById('customerName').value;
+  const total = cart.reduce((s, i) => s + i.price * i.qty, 0);
+
+  closeModal();
+  showModal(`<h2>⏳ Processing...</h2>
+    <p style="padding:20px 0;text-align:center">Sending payment request to ${phone} via ${selectedPay}...</p>
+    <p style="text-align:center;color:#888;font-size:12px">Customer should enter PIN on their phone.</p>`);
+
+  setTimeout(() => finalizeOrder(total, phone, cname), 2500);
+}
+
+function finalizeOrder(total, phone, cname) {
+  const ref = 'TXN' + Date.now();
+
+  const products = DB.get('products');
+  cart.forEach(item => {
+    const p = products.find(x => x.id === item.id);
+    if (p) p.stock -= item.qty;
+  });
+  DB.set('products', products);
+
+  const movements = DB.get('stockMovements');
+  cart.forEach(item => {
+    movements.push({
+      id: DB.nextId('stockMovements'),
+      productId: item.id,
+      productName: item.name,
+      qty: -item.qty,
+      type: 'sale',
+      requestedBy: session.name,
+      receivedBy: cname,
+      timestamp: new Date().toISOString(),
+      ref: ref,
+    });
+  });
+  DB.set('stockMovements', movements);
+
+  const order = {
+    id: DB.nextId('orders'),
+    ref, items: [...cart], total,
+    paymentMethod: selectedPay,
+    customerPhone: phone,
+    customerName: cname,
+    cashier: session.name,
+    date: new Date().toISOString(),
+    status: 'paid',
+  };
+  const orders = DB.get('orders');
+  orders.push(order);
+  DB.set('orders', orders);
+
+  const customers = DB.get('customers');
+  let cust = customers.find(c => c.phone === phone);
+  if (cust) { cust.totalSpent += total; cust.visits++; cust.lastVisit = order.date; }
+  else { customers.push({ id: DB.nextId('customers'), name: cname, phone, totalSpent: total, visits: 1, lastVisit: order.date }); }
+  DB.set('customers', customers);
+
+  cart = [];
+  showReceipt(order);
+}
+
+function showReceipt(order) {
+  const lines = order.items.map(i =>
+    `<div class="line"><span>${i.name} x${i.qty}</span><span>$${(i.price*i.qty).toFixed(2)}</span></div>`
+  ).join('');
+  showModal(`
+    <div class="receipt">
+      <div style="text-align:center">
+        <h2>🍔 SMARTPOS RESTAURANT</h2>
+        <p>123 Main Street</p>
+        <p>Tel: 0555-123456</p>
+      </div>
+      <hr>
+      <div class="line"><span>Receipt:</span><span>${order.ref}</span></div>
+      <div class="line"><span>Date:</span><span>${new Date(order.date).toLocaleString()}</span></div>
+      <div class="line"><span>Cashier:</span><span>${order.cashier}</span></div>
+      <div class="line"><span>Customer:</span><span>${order.customerName}</span></div>
+      <hr>
+      ${lines}
+      <hr>
+      <div class="line"><b>TOTAL</b><b>$${order.total.toFixed(2)}</b></div>
+      <div class="line"><span>Paid via:</span><span>${order.paymentMethod}</span></div>
+      <hr>
+      <p style="text-align:center;margin-top:10px">Thank you for your business! 🙏</p>
+    </div>
+    <button class="btn btn-primary" style="margin-top:14px" onclick="closeModal();navigate('pos')">New Sale</button>
+  `);
+  renderPOS();
+}
+
+/* ============================================================
+   MODULE 2: WAREHOUSE
+   ============================================================ */
+function renderWarehouse() {
+  const products = DB.get('products');
+  const movements = DB.get('stockMovements').slice().reverse();
+  const mc = document.getElementById('mainContent');
+  mc.innerHTML = `
+    <h1 class="page-title">📦 Warehouse Management</h1>
+    <div class="stats-grid">
+      <div class="stat-card"><div class="label">Total Products</div><div class="value">${products.length}</div></div>
+      <div class="stat-card"><div class="label">Low Stock (&lt;10)</div><div class="value">${products.filter(p=>p.stock<10).length}</div></div>
+      <div class="stat-card"><div class="label">Stock Movements</div><div class="value">${movements.length}</div></div>
+    </div>
+    <div class="card">
+      <h3>Current Stock</h3>
+      <table>
+        <thead><tr><th>Product</th><th>Price</th><th>Stock</th><th>Status</th>${session.role==='manager'?'<th>Adjust</th>':''}</tr></thead>
+        <tbody>${products.map(p=>`
+          <tr>
+            <td>${p.name}</td>
+            <td>$${p.price.toFixed(2)}</td>
+            <td>${p.stock}</td>
+            <td>${p.stock<10?'<span class="badge badge-red">Low</span>':p.stock<30?'<span class="badge badge-orange">Medium</span>':'<span class="badge badge-green">OK</span>'}</td>
+            ${session.role==='manager'?`<td><button class="btn btn-warning btn-sm" onclick="adjustStock(${p.id})">Adjust</button></td>`:''}
+          </tr>`).join('')}</tbody>
+      </table>
+    </div>
+    <div class="card">
+      <h3>Stock Movement Audit Trail</h3>
+      ${movements.length===0?'<p class="empty">No movements yet</p>':`
+      <table>
+        <thead><tr><th>Time</th><th>Product</th><th>Qty</th><th>Type</th><th>Requested By</th><th>Received By</th><th>Ref</th></tr></thead>
+        <tbody>${movements.slice(0,50).map(m=>`
+          <tr>
+            <td>${new Date(m.timestamp).toLocaleString()}</td>
+            <td>${m.productName}</td>
+            <td>${m.qty>0?'+':''}${m.qty}</td>
+            <td>${m.type}</td>
+            <td>${m.requestedBy}</td>
+            <td>${m.receivedBy}</td>
+            <td>${m.ref||'-'}</td>
+          </tr>`).join('')}</tbody>
+      </table>`}
+    </div>
+    ${session.role==='worker'?`
+    <div class="card">
+      <h3>Request Stock from Warehouse</h3>
+      <div class="form-row">
+        <select id="reqProduct">${products.map(p=>`<option value="${p.id}">${p.name}</option>`).join('')}</select>
+        <input id="reqQty" type="number" placeholder="Quantity" value="1" min="1">
+        <input id="reqReceiver" placeholder="Receiver name" value="${session.name}">
+        <button class="btn btn-primary" onclick="requestStock()">Submit Request</button>
+      </div>
+    </div>`:''}
+  `;
+}
+
+function adjustStock(id) {
+  const products = DB.get('products');
+  const p = products.find(x => x.id === id);
+  const qty = prompt(`Adjust stock for ${p.name} (current: ${p.stock}). Enter +/- amount:`);
+  if (!qty) return;
+  const delta = parseInt(qty);
+  if (isNaN(delta)) return;
+  p.stock += delta;
+  DB.set('products', products);
+  const movements = DB.get('stockMovements');
+  movements.push({
+    id: DB.nextId('stockMovements'), productId: p.id, productName: p.name,
+    qty: delta, type: 'adjustment', requestedBy: session.name, receivedBy: session.name,
+    timestamp: new Date().toISOString(), ref: 'ADJ'+Date.now(),
+  });
+  DB.set('stockMovements', movements);
+  renderWarehouse();
+}
+
+function requestStock() {
+  const pid = parseInt(document.getElementById('reqProduct').value);
+  const qty = parseInt(document.getElementById('reqQty').value);
+  const receiver = document.getElementById('reqReceiver').value;
+  if (!qty || qty <= 0) { alert('Invalid quantity'); return; }
+  const products = DB.get('products');
+  const p = products.find(x => x.id === pid);
+  if (p.stock < qty) { alert('Not enough stock!'); return; }
+  p.stock -= qty;
+  DB.set('products', products);
+  const movements = DB.get('stockMovements');
+  movements.push({
+    id: DB.nextId('stockMovements'), productId: p.id, productName: p.name,
+    qty: -qty, type: 'warehouse_request', requestedBy: session.name, receivedBy: receiver,
+    timestamp: new Date().toISOString(), ref: 'REQ'+Date.now(),
+  });
+  DB.set('stockMovements', movements);
+  alert('Stock request recorded!');
+  renderWarehouse();
+}
+
+/* ============================================================
+   MODULE 3: MANAGER DASHBOARD
+   ============================================================ */
+function renderDashboard() {
+  if (session.role !== 'manager') {
+    document.getElementById('mainContent').innerHTML = '<p class="empty">Access denied.</p>';
+    return;
+  }
+
+  const orders = DB.get('orders');
+  const today = new Date().toDateString();
+  const thisWeek = getWeekStart();
+  const thisMonth = new Date().getMonth();
+
+  const todayOrders = orders.filter(o => new Date(o.date).toDateString() === today);
+  const weekOrders = orders.filter(o => new Date(o.date) >= thisWeek);
+  const monthOrders = orders.filter(o => new Date(o.date).getMonth() === thisMonth);
+  const sum = arr => arr.reduce((s, o) => s + o.total, 0);
+
+  document.getElementById('mainContent').innerHTML = `
+    <h1 class="page-title">📊 Sales Dashboard <span class="badge badge-purple">Manager Only</span></h1>
+    <div class="stats-grid">
+      <div class="stat-card"><div class="label">Today's Sales</div><div class="value">$${sum(todayOrders).toFixed(2)}</div></div>
+      <div class="stat-card" style="border-color:#27ae60"><div class="label">This Week</div><div class="value">$${sum(weekOrders).toFixed(2)}</div></div>
+      <div class="stat-card" style="border-color:#f39c12"><div class="label">This Month</div><div class="value">$${sum(monthOrders).toFixed(2)}</div></div>
+      <div class="stat-card" style="border-color:#e74c3c"><div class="label">Total Orders</div><div class="value">${orders.length}</div></div>
+    </div>
+    <div class="card">
+      <h3>Sales Breakdown</h3>
+      <table>
+        <thead><tr><th>Period</th><th>Orders</th><th>Revenue</th><th>Avg Order</th></tr></thead>
+        <tbody>
+          <tr><td>Today</td><td>${todayOrders.length}</td><td>$${sum(todayOrders).toFixed(2)}</td><td>$${todayOrders.length?(sum(todayOrders)/todayOrders.length).toFixed(2):'0.00'}</td></tr>
+          <tr><td>This Week</td><td>${weekOrders.length}</td><td>$${sum(weekOrders).toFixed(2)}</td><td>$${weekOrders.length?(sum(weekOrders)/weekOrders.length).toFixed(2):'0.00'}</td></tr>
+          <tr><td>This Month</td><td>${monthOrders.length}</td><td>$${sum(monthOrders).toFixed(2)}</td><td>$${monthOrders.length?(sum(monthOrders)/monthOrders.length).toFixed(2):'0.00'}</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="card">
+      <h3>Recent Transactions</h3>
+      ${orders.length===0?'<p class="empty">No sales yet</p>':`
+      <table>
+        <thead><tr><th>Ref</th><th>Customer</th><th>Cashier</th><th>Amount</th><th>Payment</th><th>Time</th></tr></thead>
+        <tbody>${orders.slice(-15).reverse().map(o=>`
+          <tr><td>${o.ref}</td><td>${o.customerName}</td><td>${o.cashier}</td><td>$${o.total.toFixed(2)}</td><td>${o.paymentMethod}</td><td>${new Date(o.date).toLocaleString()}</td></tr>
+        `).join('')}</tbody>
+      </table>`}
+    </div>
+  `;
+}
+
+function getWeekStart() {
+  const d = new Date();
+  const day = d.getDay();
+  d.setDate(d.getDate() - day);
+  d.setHours(0,0,0,0);
+  return d;
+}
+
+/* ============================================================
+   MODULE 4: RIDERS
+   ============================================================ */
+function renderRiders() {
+  const orders = DB.get('orders').filter(o => o.status === 'paid' || o.status === 'delivering');
+  const deliveries = DB.get('deliveries');
+  const riders = DB.get('users').filter(u => u.role === 'rider');
+
+  document.getElementById('mainContent').innerHTML = `
+    <h1 class="page-title">🛵 Riders & Deliveries</h1>
+    <div class="card">
+      <h3>Assign Rider to Order</h3>
+      ${orders.length===0?'<p class="empty">No paid orders awaiting delivery</p>':
+        riders.length===0?'<p class="empty">No riders yet. Create a rider account in <b>User Management</b> first.</p>':`
+      <div class="form-row">
+        <select id="delOrder">${orders.map(o=>`<option value="${o.id}">#${o.id} — ${o.customerName} — $${o.total.toFixed(2)}</option>`).join('')}</select>
+        <select id="delRider">${riders.map(r=>`<option value="${r.username}">${r.name}</option>`).join('')}</select>
+        <button class="btn btn-primary" onclick="assignRider()">Assign Rider</button>
+      </div>`}
+    </div>
+    <div class="card">
+      <h3>Active Deliveries</h3>
+      ${deliveries.length===0?'<p class="empty">No deliveries assigned</p>':`
+      <table>
+        <thead><tr><th>Order</th><th>Rider</th><th>Status</th><th>Assigned</th><th>Delivered</th></tr></thead>
+        <tbody>${deliveries.map(d=>{
+          const order = DB.get('orders').find(o=>o.id===d.orderId) || {};
+          const rider = DB.get('users').find(r=>r.username===d.riderUsername) || {};
+          return `<tr>
+            <td>#${d.orderId} — ${order.customerName||''}</td>
+            <td>${rider.name||'?'}</td>
+            <td>${statusBadge(d.status)}</td>
+            <td>${new Date(d.assignedAt).toLocaleString()}</td>
+            <td>${d.deliveredAt?new Date(d.deliveredAt).toLocaleString():'-'}</td>
+          </tr>`;
+        }).join('')}</tbody>
+      </table>`}
+    </div>
+  `;
+}
+
+function statusBadge(s) {
+  const map = { assigned:'orange', picked_up:'blue', en_route:'blue', delivered:'green' };
+  return `<span class="badge badge-${map[s]||'blue'}">${s.replace('_',' ')}</span>`;
+}
+
+function assignRider() {
+  const orderId = parseInt(document.getElementById('delOrder').value);
+  const riderUsername = document.getElementById('delRider').value;
+  const deliveries = DB.get('deliveries');
+  if (deliveries.find(d => d.orderId === orderId && d.status !== 'delivered')) {
+    alert('This order already has an active delivery'); return;
+  }
+  deliveries.push({
+    id: DB.nextId('deliveries'), orderId, riderUsername,
+    status: 'assigned',
+    assignedAt: new Date().toISOString(),
+    pickedUpAt: null, deliveredAt: null,
+  });
+  DB.set('deliveries', deliveries);
+  alert('Rider assigned!');
+  renderRiders();
+}
+
+function renderRiderDeliveries() {
+  const deliveries = DB.get('deliveries').filter(d => d.riderUsername === session.username);
+
+  document.getElementById('mainContent').innerHTML = `
+    <h1 class="page-title">🛵 My Deliveries — ${session.name}</h1>
+    ${deliveries.length===0?'<p class="empty">No deliveries assigned yet</p>':`
+    <div class="card">
+      <table>
+        <thead><tr><th>Order</th><th>Customer</th><th>Amount</th><th>Status</th><th>Action</th></tr></thead>
+        <tbody>${deliveries.map(d=>{
+          const order = DB.get('orders').find(o=>o.id===d.orderId) || {};
+          return `<tr>
+            <td>#${d.orderId}</td>
+            <td>${order.customerName||'-'}<br><small>${order.customerPhone||''}</small></td>
+            <td>$${(order.total||0).toFixed(2)}</td>
+            <td>${statusBadge(d.status)}</td>
+            <td>
+              ${d.status==='assigned'?`<button class="btn btn-primary btn-sm" onclick="updateDelivery(${d.id},'picked_up')">Pick Up</button>`:''}
+              ${d.status==='picked_up'?`<button class="btn btn-warning btn-sm" onclick="updateDelivery(${d.id},'en_route')">En Route</button>`:''}
+              ${d.status==='en_route'?`<button class="btn btn-success btn-sm" onclick="updateDelivery(${d.id},'delivered')">Delivered</button>`:''}
+              ${d.status==='delivered'?'✅ Done':''}
+            </td>
+          </tr>`;
+        }).join('')}</tbody>
+      </table>
+    </div>`}
+  `;
+}
+
+function updateDelivery(id, status) {
+  const deliveries = DB.get('deliveries');
+  const d = deliveries.find(x => x.id === id);
+  if (!d) return;
+  d.status = status;
+  if (status === 'picked_up') d.pickedUpAt = new Date().toISOString();
+  if (status === 'delivered') {
+    d.deliveredAt = new Date().toISOString();
+    const orders = DB.get('orders');
+    const order = orders.find(o => o.id === d.orderId);
+    if (order) order.status = 'delivered';
+    DB.set('orders', orders);
+    alert(`✅ Restaurant notified: Order #${d.orderId} was delivered successfully!`);
+  }
+  DB.set('deliveries', deliveries);
+  renderRiderDeliveries();
+}
+
+/* ============================================================
+   MODULE 5: CUSTOMERS
+   ============================================================ */
+function renderCustomers() {
+  const customers = DB.get('customers');
+  document.getElementById('mainContent').innerHTML = `
+    <h1 class="page-title">👥 Customer Dashboard</h1>
+    <div class="stats-grid">
+      <div class="stat-card"><div class="label">Total Customers</div><div class="value">${customers.length}</div></div>
+      <div class="stat-card" style="border-color:#27ae60"><div class="label">Total Revenue</div><div class="value">$${customers.reduce((s,c)=>s+c.totalSpent,0).toFixed(2)}</div></div>
+      <div class="stat-card" style="border-color:#f39c12"><div class="label">Avg Spend</div><div class="value">$${customers.length?(customers.reduce((s,c)=>s+c.totalSpent,0)/customers.length).toFixed(2):'0.00'}</div></div>
+    </div>
+    <div class="card">
+      <h3>Customer List</h3>
+      ${customers.length===0?'<p class="empty">No customers yet — they appear automatically after each sale</p>':`
+      <table>
+        <thead><tr><th>Name</th><th>Phone</th><th>Total Spent</th><th>Visits</th><th>Last Visit</th></tr></thead>
+        <tbody>${customers.slice().reverse().map(c=>`
+          <tr><td>${c.name}</td><td>${c.phone}</td><td>$${c.totalSpent.toFixed(2)}</td><td>${c.visits}</td><td>${new Date(c.lastVisit).toLocaleString()}</td></tr>
+        `).join('')}</tbody>
+      </table>`}
+    </div>
+  `;
+}
+
+/* ============================================================
+   MODULE 6: USER MANAGEMENT (MANAGER ONLY)
+   ============================================================ */
+function renderUsers() {
+  if (session.role !== 'manager') {
+    document.getElementById('mainContent').innerHTML = '<p class="empty">Access denied.</p>';
+    return;
+  }
+
+  const users = DB.get('users');
+  document.getElementById('mainContent').innerHTML = `
+    <h1 class="page-title">🔐 User Management <span class="badge badge-purple">Manager Only</span></h1>
+
+    <div class="card">
+      <h3>➕ Create New User Account</h3>
+      <div class="form-row">
+        <input id="nuUsername" placeholder="Username (login name)">
+        <input id="nuName" placeholder="Full name">
+      </div>
+      <div class="form-row">
+        <input id="nuPassword" type="password" placeholder="Password (optional — leave blank for no password)">
+        <input id="nuPhone" placeholder="Phone (optional)">
+      </div>
+      <div class="form-row">
+        <select id="nuRole">
+          <option value="worker">👷 Worker</option>
+          <option value="rider">🛵 Rider</option>
+          <option value="manager">👔 Manager</option>
+        </select>
+        <button class="btn btn-success" style="flex:1" onclick="createUser()">Create Account</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>👥 All Users (${users.length})</h3>
+      <table>
+        <thead><tr><th>Username</th><th>Full Name</th><th>Role</th><th>Password</th><th>Phone</th><th>Actions</th></tr></thead>
+        <tbody>${users.map(u=>`
+          <tr>
+            <td><b>${u.username}</b></td>
+            <td>${u.name}</td>
+            <td>${roleBadge(u.role)}</td>
+            <td>${u.password ? '••••' : '<span class="badge badge-orange">empty</span>'}</td>
+            <td>${u.phone || '-'}</td>
+            <td>
+              <button class="btn btn-warning btn-sm" onclick="resetPassword('${u.username}')">Reset Password</button>
+              ${u.username !== 'manager' ? `<button class="btn btn-danger btn-sm" onclick="deleteUser('${u.username}')">Delete</button>` : '<span class="badge badge-blue">Protected</span>'}
+            </td>
+          </tr>`).join('')}</tbody>
+      </table>
+    </div>
+  `;
+}
+
+function roleBadge(role) {
+  const map = { manager: 'purple', worker: 'blue', rider: 'orange' };
+  return `<span class="badge badge-${map[role]||'blue'}">${role}</span>`;
+}
+
+function createUser() {
+  const username = document.getElementById('nuUsername').value.trim().toLowerCase();
+  const name = document.getElementById('nuName').value.trim();
+  const password = document.getElementById('nuPassword').value; // may be empty
+  const phone = document.getElementById('nuPhone').value.trim();
+  const role = document.getElementById('nuRole').value;
+
+  if (!username || !name) { alert('Please fill username and full name.'); return; }
+
+  const users = DB.get('users');
+  if (users.find(u => u.username === username)) {
+    alert('That username already exists. Please choose another.'); return;
+  }
+
+  users.push({ username, name, password, role, phone });
+  DB.set('users', users);
+  alert(`✅ Account created!\n\nUsername: ${username}\nRole: ${role}\nPassword: ${password ? 'set' : 'EMPTY (can log in with blank password)'}`);
+  renderUsers();
+}
+
+function resetPassword(username) {
+  const newPass = prompt(`Enter new password for "${username}" (leave blank for no password):`);
+  if (newPass === null) return; // user cancelled
+  const users = DB.get('users');
+  const u = users.find(x => x.username === username);
+  if (!u) return;
+  u.password = newPass; // empty string allowed
+  DB.set('users', users);
+  alert(`✅ Password updated for ${username}${newPass ? '' : ' (now empty — blank login allowed)'}.`);
+  renderUsers();
+}
+
+function deleteUser(username) {
+  if (username === 'manager') { alert('The default manager account cannot be deleted.'); return; }
+  if (!confirm(`Delete user "${username}"? This cannot be undone.`)) return;
+  const users = DB.get('users').filter(u => u.username !== username);
+  DB.set('users', users);
+  alert('User deleted.');
+  renderUsers();
+}
+
+/* ============================================================
+   MODAL HELPERS
+   ============================================================ */
+function showModal(html) {
+  document.getElementById('modalContainer').innerHTML = `<div class="modal"><div class="modal-box">${html}</div></div>`;
+}
+function closeModal() {
+  document.getElementById('modalContainer').innerHTML = '';
+}
+</script>
+</body>
+</html>
