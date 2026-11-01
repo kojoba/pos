@@ -3,7 +3,7 @@ services:
     name: daddys-pizza-pos
     runtime: node
     plan: free
-    buildCommand: npm ci && npm --prefix server ci && npm --prefix client ci && npm run build
+    buildCommand: npm ci && npm --prefix server ci && npm --prefix client ci --include=dev && npm run build
     startCommand: npm start
     healthCheckPath: /api/health
     envVars:
