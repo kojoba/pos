@@ -1,0 +1,21 @@
+services:
+  - type: web
+    name: daddys-pizza-pos
+    runtime: node
+    plan: free
+    buildCommand: npm ci && npm --prefix server ci && npm --prefix client ci && npm run build
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: ADMIN_USERNAME
+        value: manager
+      - key: ADMIN_NAME
+        value: Restaurant Manager
+      - key: ADMIN_PASSWORD
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: DELIVERY_CODE_SECRET
+        generateValue: true
