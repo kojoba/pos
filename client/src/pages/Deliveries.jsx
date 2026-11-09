@@ -160,7 +160,7 @@ export default function Deliveries({ user, notify, changed }) {
         <label>Delivery order
           <select value={orderId} onChange={event => setOrderId(event.target.value)}>
             {available.map(order => <option value={order.id} key={order.id}>
-              {order.ref} · {order.customerName} · {order.deliveryAddress} · {money(order.total)}{order.orderStatus === 'due' ? ' · COD' : ''}
+              {order.branchName?`${order.branchName} · `:''}{order.ref} · {order.customerName} · {order.deliveryAddress} · {money(order.total)}{order.orderStatus === 'due' ? ' · COD' : ''}
             </option>)}
           </select>
         </label>
@@ -190,7 +190,7 @@ export default function Deliveries({ user, notify, changed }) {
 
           <div className="delivery-customer">
             <span className="avatar avatar-light">{(delivery.customerName || 'C').slice(0, 1).toUpperCase()}</span>
-            <div><strong>{delivery.customerName}</strong><small>{delivery.items || 'Order items unavailable'}</small></div>
+            <div><strong>{delivery.customerName}</strong><small>{delivery.branchName?`${delivery.branchName} · `:''}{delivery.items || 'Order items unavailable'}</small></div>
             <strong className="delivery-total">{money(delivery.total)}</strong>
           </div>
 
