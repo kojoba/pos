@@ -4,6 +4,7 @@ import { db } from '../db.js';
 import { requireAuth, requireRole } from '../auth.js';
 import { failPendingOrder, publicOrder, settlePendingOrder } from '../order-service.js';
 import { parseDeliveryDetails } from '../delivery-utils.js';
+import { resolveBranchId } from '../branch-access.js';
 const router=Router();
 const providerCodes={mtn:'mtn',at:'atl',telecel:'vod'};
 function secret(){return process.env.PAYSTACK_SECRET_KEY||'';}
@@ -29,11 +30,11 @@ function normalizeGhanaPhone(value){
 }
 function transactionReference(){return `DPmomo${Date.now()}${randomUUID().replaceAll('-','').slice(0,12)}`;}
 function paymentItems(lines){if(!Array.isArray(lines)||!lines.length||lines.length>100)throw new Error('Add at least one product to the cart.');const quantities=new Map();for(const line of lines){const id=Number(line.productId),qty=Number(line.quantity);if(!Number.isInteger(id)||!Number.isInteger(qty)||qty<1||qty>1000)throw new Error('One or more cart quantities are invalid.');quantities.set(id,(quantities.get(id)||0)+qty);}return [...quantities];}
-function createPendingOrder(req,{phone,lines,customerName,delivery}){return db.transaction(()=>{
- let total=delivery.deliveryFeePesewas;const products=[];for(const [id,quantity] of lines){const product=db.prepare('SELECT * FROM products WHERE id=? AND active=1').get(id);if(!product)throw new Error('A product in your cart is no longer available.');const available=product.stock-product.reserved;if(available<quantity)throw new Error(`Not enough stock for ${product.name}. Available: ${available}.`);products.push({product,quantity});total+=product.price_pesewas*quantity;}
+function createPendingOrder(req,{phone,lines,customerName,delivery,branchId}){return db.transaction(()=>{
+ let total=delivery.deliveryFeePesewas;const products=[];for(const [id,quantity] of lines){const product=db.prepare(`SELECT p.*,bi.on_hand AS stock,bi.reserved FROM products p JOIN branch_inventory bi ON bi.product_id=p.id AND bi.branch_id=? WHERE p.id=? AND p.active=1`).get(branchId,id);if(!product)throw new Error('A product in your cart is not stocked at this branch.');const available=product.stock-product.reserved;if(available<quantity)throw new Error(`Not enough stock for ${product.name} at this branch. Available: ${available}.`);products.push({product,quantity});total+=product.price_pesewas*quantity;}
  const ref=transactionReference(),cashier=db.prepare('SELECT name FROM users WHERE id=?').get(req.auth.id);
- const order=db.prepare(`INSERT INTO orders(ref,total_pesewas,payment_method,customer_name,customer_phone,customer_email,fulfillment_type,delivery_address,delivery_instructions,delivery_fee_pesewas,payment_reference,payment_message,cashier_id,cashier_name,status) VALUES(?,?,?,?,?,?,?,?,?,?,?,'Waiting for Paystack mobile money authorization.',?,?, 'pending')`).run(ref,total,'Paystack Mobile Money',customerName,phone,delivery.customerEmail||'',delivery.fulfillmentType,delivery.deliveryAddress,delivery.deliveryInstructions,delivery.deliveryFeePesewas,ref,req.auth.id,cashier.name);
- for(const {product,quantity} of products){db.prepare('INSERT INTO order_items(order_id,product_id,product_name,unit_price_pesewas,quantity) VALUES(?,?,?,?,?)').run(order.lastInsertRowid,product.id,product.name,product.price_pesewas,quantity);db.prepare('UPDATE products SET reserved=reserved+? WHERE id=?').run(quantity,product.id);}
+ const order=db.prepare(`INSERT INTO orders(ref,total_pesewas,payment_method,customer_name,customer_phone,customer_email,fulfillment_type,delivery_address,delivery_instructions,delivery_fee_pesewas,payment_reference,payment_message,cashier_id,cashier_name,branch_id,status) VALUES(?,?,?,?,?,?,?,?,?,?,?,'Waiting for Paystack mobile money authorization.',?,?,?, 'pending')`).run(ref,total,'Paystack Mobile Money',customerName,phone,delivery.customerEmail||'',delivery.fulfillmentType,delivery.deliveryAddress,delivery.deliveryInstructions,delivery.deliveryFeePesewas,ref,req.auth.id,cashier.name,branchId);
+ for(const {product,quantity} of products){db.prepare('INSERT INTO order_items(order_id,product_id,product_name,unit_price_pesewas,quantity) VALUES(?,?,?,?,?)').run(order.lastInsertRowid,product.id,product.name,product.price_pesewas,quantity);db.prepare(`UPDATE branch_inventory SET reserved=reserved+?,updated_at=datetime('now') WHERE branch_id=? AND product_id=?`).run(quantity,branchId,product.id);}
  return db.prepare('SELECT * FROM orders WHERE id=?').get(order.lastInsertRowid);
 })();}
 async function verifyAndApply(reference){
@@ -46,6 +47,7 @@ async function verifyAndApply(reference){
  return {order:local,status:'pending',message:local.payment_message||'Waiting for approval on the customer’s phone.'};
 }
 router.post('/momo',requireAuth,requireRole('manager','worker'),async(req,res)=>{
+ let branchId;try{branchId=resolveBranchId(req.auth,req.body?.branchId)}catch(e){return res.status(400).json({error:e.message});}
  const email=String(req.body?.email||'').trim().toLowerCase(),phone=String(req.body?.phone||req.body?.customerPhone||'').trim(),provider=String(req.body?.provider||'').toLowerCase(),customerName=String(req.body?.customerName||'Walk-in customer').trim().slice(0,100)||'Walk-in customer';
  let lines;try{lines=paymentItems(req.body?.items);}catch(e){return res.status(400).json({error:e.message});}
  if(!/^\S+@\S+\.\S+$/.test(email))return res.status(400).json({error:'Enter a valid customer email for the Paystack charge.'});
@@ -54,7 +56,7 @@ router.post('/momo',requireAuth,requireRole('manager','worker'),async(req,res)=>
  let delivery;try{delivery=parseDeliveryDetails(req.body,normalizedPhone);}catch(e){return res.status(400).json({error:e.message});}
  if(!providerCodes[provider])return res.status(400).json({error:'Choose MTN, AT Money/AirtelTigo or Telecel.'});
  if(!secret())return res.status(503).json({error:'Paystack is not configured yet. Add PAYSTACK_SECRET_KEY to server/.env.'});
- let order;try{order=createPendingOrder(req,{phone:normalizedPhone,lines,customerName,delivery});}catch(e){return res.status(400).json({error:e.message});}
+ let order;try{order=createPendingOrder(req,{phone:normalizedPhone,lines,customerName,delivery,branchId});}catch(e){return res.status(400).json({error:e.message});}
  try{
   const response=await paystackFetch('/charge',{method:'POST',body:JSON.stringify({email,amount:order.total_pesewas,currency:'GHS',reference:order.payment_reference,mobile_money:{phone:normalizedPhone,provider:providerCodes[provider]}})}),data=response.data||{};
   if(data.reference&&data.reference!==order.payment_reference)throw new Error('Paystack returned a different payment reference. Please check the transaction before retrying.');
@@ -70,6 +72,7 @@ router.post('/momo',requireAuth,requireRole('manager','worker'),async(req,res)=>
 router.get('/:reference/status',requireAuth,requireRole('manager','worker'),async(req,res)=>{
  const reference=String(req.params.reference||''),local=db.prepare('SELECT * FROM orders WHERE payment_reference=?').get(reference);
  if(!local)return res.status(404).json({error:'Paystack payment not found.'});
+ if(req.auth.branchId&&local.branch_id!==req.auth.branchId)return res.status(403).json({error:'This payment belongs to another branch.'});
  if(req.auth.role!=='manager'&&local.cashier_id!==req.auth.id)return res.status(403).json({error:'This payment belongs to another cashier.'});
  if(local.status!=='pending')return res.json({reference,status:local.status,order:publicOrder(local),displayText:local.payment_message});
  try{const result=await verifyAndApply(reference);return res.json({reference,status:result.status,order:publicOrder(result.order),displayText:result.message});}

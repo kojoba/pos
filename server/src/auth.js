@@ -18,12 +18,12 @@ export function requireAuth(req, res, next) {
   if (!token) return res.status(401).json({ error: 'Please sign in to continue.' });
   try {
     const claims = jwt.verify(token, signingSecret);
-    const user = db.prepare('SELECT id, role, active FROM users WHERE id = ?').get(claims.id);
-    if (!user || !user.active) {
+    const user = db.prepare(`SELECT u.id,u.role,u.active,u.branch_id,b.active AS branch_active FROM users u LEFT JOIN branches b ON b.id=u.branch_id WHERE u.id=?`).get(claims.id);
+    if (!user || !user.active || (user.branch_id&&!user.branch_active)) {
       res.clearCookie('pos_session', { ...cookieOptions, maxAge: undefined });
       return res.status(401).json({ error: 'Your account is inactive. Please contact a manager.' });
     }
-    req.auth = { id: user.id, role: user.role };
+    req.auth = { id: user.id, role: user.role, branchId: user.branch_id ?? null };
     next();
   } catch {
     res.clearCookie('pos_session', { ...cookieOptions, maxAge: undefined });

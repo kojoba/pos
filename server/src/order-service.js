@@ -1,4 +1,5 @@
 import { db } from './db.js';
+import { feedbackUrl } from './feedback-service.js';
 
 export function getOrder(orderId) {
   const order = db.prepare('SELECT * FROM orders WHERE id=?').get(orderId);
@@ -15,20 +16,26 @@ export function settlePendingOrder(orderId, message = '') {
     if (order.status !== 'pending') throw new Error('This payment is no longer pending.');
     const items = db.prepare('SELECT * FROM order_items WHERE order_id=?').all(orderId);
     for (const item of items) {
-      const product = db.prepare('SELECT * FROM products WHERE id=?').get(item.product_id);
-      if (!product || product.stock < item.quantity || product.reserved < item.quantity) {
+      const inventory = db.prepare('SELECT * FROM branch_inventory WHERE branch_id=? AND product_id=?').get(order.branch_id,item.product_id);
+      if (!inventory || inventory.on_hand < item.quantity || inventory.reserved < item.quantity) {
         throw new Error(`Stock reservation could not be confirmed for ${item.product_name}.`);
       }
     }
     for (const item of items) {
-      db.prepare('UPDATE products SET stock=stock-?, reserved=reserved-? WHERE id=?').run(item.quantity,item.quantity,item.product_id);
-      db.prepare(`INSERT INTO stock_movements(product_id,product_name,quantity,movement_type,reference,performed_by,received_by)
-        VALUES(?,?,?,'sale',?,?,?)`).run(item.product_id,item.product_name,-item.quantity,order.ref,order.cashier_name,order.customer_name);
+      db.prepare(`UPDATE branch_inventory SET on_hand=on_hand-?,reserved=reserved-?,updated_at=datetime('now') WHERE branch_id=? AND product_id=?`).run(item.quantity,item.quantity,order.branch_id,item.product_id);
+      db.prepare(`INSERT INTO stock_movements(product_id,product_name,quantity,movement_type,reference,performed_by,received_by,branch_id)
+        VALUES(?,?,?,'sale',?,?,?,?)`).run(item.product_id,item.product_name,-item.quantity,order.ref,order.cashier_name,order.customer_name,order.branch_id);
     }
     if (order.customer_phone) {
       const existing = db.prepare('SELECT id FROM customers WHERE phone=?').get(order.customer_phone);
-      if (existing) db.prepare(`UPDATE customers SET name=?,total_spent_pesewas=total_spent_pesewas+?,visits=visits+1,last_visit=datetime('now') WHERE id=?`).run(order.customer_name,order.total_pesewas,existing.id);
-      else db.prepare(`INSERT INTO customers(name,phone,total_spent_pesewas,visits,last_visit) VALUES(?,?,?,1,datetime('now'))`).run(order.customer_name,order.customer_phone,order.total_pesewas);
+      let customerId;
+      if (existing) {
+        customerId=existing.id;
+        db.prepare(`UPDATE customers SET name=?,email=CASE WHEN ?!='' THEN ? ELSE email END,total_spent_pesewas=total_spent_pesewas+?,visits=visits+1,last_visit=datetime('now') WHERE id=?`).run(order.customer_name,order.customer_email||'',order.customer_email||'',order.total_pesewas,existing.id);
+      } else {
+        customerId=db.prepare(`INSERT INTO customers(name,phone,email,total_spent_pesewas,visits,last_visit) VALUES(?,?,?,?,1,datetime('now'))`).run(order.customer_name,order.customer_phone,order.customer_email||'',order.total_pesewas).lastInsertRowid;
+      }
+      db.prepare('UPDATE orders SET customer_id=? WHERE id=?').run(customerId,orderId);
     }
     db.prepare(`UPDATE orders SET status='paid',paid_at=datetime('now'),payment_message=? WHERE id=?`).run(message,orderId);
     return db.prepare('SELECT * FROM orders WHERE id=?').get(orderId);
@@ -41,7 +48,7 @@ export function failPendingOrder(orderId, message = 'Payment was not completed.'
     if (!order || order.status !== 'pending') return order;
     const items = db.prepare('SELECT product_id,quantity FROM order_items WHERE order_id=?').all(orderId);
     for (const item of items) {
-      db.prepare('UPDATE products SET reserved=MAX(0,reserved-?) WHERE id=?').run(item.quantity,item.product_id);
+      db.prepare(`UPDATE branch_inventory SET reserved=MAX(0,reserved-?),updated_at=datetime('now') WHERE branch_id=? AND product_id=?`).run(item.quantity,order.branch_id,item.product_id);
     }
     db.prepare(`UPDATE orders SET status='failed',payment_message=? WHERE id=?`).run(message,orderId);
     return db.prepare('SELECT * FROM orders WHERE id=?').get(orderId);
@@ -59,11 +66,11 @@ export function recordCashOnDeliveryCollection(orderId, collectorId, collectorNa
   if (order.customer_phone) {
     const existing = db.prepare('SELECT id FROM customers WHERE phone=?').get(order.customer_phone);
     if (existing) {
-      db.prepare(`UPDATE customers SET name=?,total_spent_pesewas=total_spent_pesewas+?,visits=visits+1,last_visit=datetime('now') WHERE id=?`)
-        .run(order.customer_name, order.total_pesewas, existing.id);
+      db.prepare(`UPDATE customers SET name=?,email=CASE WHEN ?!='' THEN ? ELSE email END,total_spent_pesewas=total_spent_pesewas+?,visits=visits+1,last_visit=datetime('now') WHERE id=?`)
+        .run(order.customer_name, order.customer_email||'', order.customer_email||'', order.total_pesewas, existing.id);
     } else {
-      db.prepare(`INSERT INTO customers(name,phone,total_spent_pesewas,visits,last_visit) VALUES(?,?,?,1,datetime('now'))`)
-        .run(order.customer_name, order.customer_phone, order.total_pesewas);
+      db.prepare(`INSERT INTO customers(name,phone,email,total_spent_pesewas,visits,last_visit) VALUES(?,?,?,?,1,datetime('now'))`)
+        .run(order.customer_name, order.customer_phone, order.customer_email||'', order.total_pesewas);
     }
   }
 
@@ -73,10 +80,12 @@ export function recordCashOnDeliveryCollection(orderId, collectorId, collectorNa
 }
 
 export function publicOrder(order) {
+  const branchName=order.branch_id?db.prepare('SELECT name FROM branches WHERE id=?').get(order.branch_id)?.name||'':'';
   return { id:order.id, ref:order.ref, total:order.total_pesewas/100, paymentMethod:order.payment_method,
+    branchId:order.branch_id||null,branchName,
     customerName:order.customer_name, customerPhone:order.customer_phone, cashier:order.cashier_name,
     fulfillmentType:order.fulfillment_type||'pickup', deliveryAddress:order.delivery_address||'',
     deliveryInstructions:order.delivery_instructions||'', deliveryFee:(order.delivery_fee_pesewas||0)/100,
-    cashCollectedBy:order.cash_collected_by_name||'',
+    cashCollectedBy:order.cash_collected_by_name||'', feedbackUrl:feedbackUrl(order.id),
     status:order.status, createdAt:order.created_at, paidAt:order.paid_at };
 }
